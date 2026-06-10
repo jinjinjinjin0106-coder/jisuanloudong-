@@ -28,7 +28,6 @@ ol { padding-left: 18px; line-height: 2.2; font-size: 14px; }
 .footer { text-align: center; padding: 20px; color: #999; font-size: 12px; }
 @media print { .header, .footer, .btn, .no-print { display: none !important; } .card { box-shadow: none !important; border: none !important; padding: 4px 0 !important; margin: 0 0 6px 0 !important; } .ans { display: inline !important; color: #555 !important; } span[onclick] { display: none !important; } .hide { display: block !important; } }
 </style>
-<script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
 </head>
 <body>
 <div class="header">🐵 小猴数学 · 一周练习计划</div>
@@ -258,56 +257,46 @@ function generatePDF() {
   var el = document.getElementById('plan-content');
   if (!el) { alert('请先生成练习计划'); return; }
 
-  // Show all answers in the PDF
-  var answers = el.querySelectorAll('.ans');
-  var wasHidden = [];
-  answers.forEach(function(a) { wasHidden.push(a.style.display); a.style.display = 'inline'; });
-
-  // Also show all day bodies
-  var bodies = el.querySelectorAll('.plan-day-body');
-  var bodyWasHidden = [];
-  bodies.forEach(function(b) { bodyWasHidden.push(b.classList.contains('hide')); b.classList.remove('hide'); });
-
-  if (typeof html2pdf !== 'undefined') {
-    html2pdf().set({
-      margin: [8, 8, 8, 8],
-      filename: '练习计划.pdf',
-      image: { type: 'jpeg', quality: 0.95 },
-      html2canvas: { scale: 2, useCORS: true },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-    }).from(el).outputPdf('blob').then(function(blob) {
-      var url = URL.createObjectURL(blob);
-      window.location.href = url;
-    }).catch(function() {
-      fallbackPDF(el);
-    });
-  } else {
-    fallbackPDF(el);
-  }
-
-  // Restore
-  setTimeout(function() {
-    answers.forEach(function(a, i) { a.style.display = wasHidden[i]; });
-    bodies.forEach(function(b, i) { if (bodyWasHidden[i]) b.classList.add('hide'); });
-  }, 500);
-}
-
-function fallbackPDF(el) {
-  var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width"><title>练习计划</title>' +
-    '<style>body{font-family:-apple-system,sans-serif;padding:16px;max-width:480px;margin:0 auto}' +
-    '.ans{color:#27ae60;font-weight:600;font-size:13px;margin-left:4px;display:inline!important}' +
-    '.plan-day{border:1px solid #ddd;border-radius:10px;margin-bottom:8px}' +
-    '.plan-day-top{padding:10px 14px;background:#f0faf4;font-weight:700}' +
-    '.plan-day-body{padding:10px 14px;display:block!important}' +
+  // Build clean plan HTML
+  var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>小猴数学·练习计划</title>' +
+    '<style>' +
+    '*{box-sizing:border-box;margin:0;padding:0}' +
+    'body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;padding:12px;max-width:500px;margin:0 auto;color:#2c3e50;background:#fff}' +
+    'h3{font-size:16px;margin:8px 0 12px}' +
+    '.plan-day{border:1px solid #ddd;border-radius:10px;margin-bottom:8px;overflow:hidden}' +
+    '.plan-day-top{padding:10px 14px;background:#f0faf4;font-weight:700;font-size:14px}' +
+    '.plan-day-body{padding:10px 14px}' +
     'ol{padding-left:18px;line-height:2.2;font-size:14px}' +
+    '.ans{color:#27ae60;font-weight:600;font-size:13px;margin-left:4px}' +
     'span[onclick]{display:none!important}' +
-    'button,.btn,a.btn{display:none!important}' +
-    '@media print{body{padding:0}}' +
-    '</style></head><body>' + el.innerHTML + '<script>setTimeout(function(){window.print();},600);<\/script></body></html>';
-  var blob = new Blob([html], {type: 'text/html'});
+    '.no-print{display:none}' +
+    '.top-bar{position:sticky;top:0;background:#fff;padding:8px 0;margin-bottom:12px;border-bottom:1px solid #eee;z-index:10}' +
+    '.top-bar a{color:#e67e22;text-decoration:none;font-size:14px;font-weight:600}' +
+    '.print-btn{display:block;width:100%;padding:14px;background:#27ae60;color:#fff;border:none;border-radius:8px;font-size:16px;font-weight:600;margin:16px 0;cursor:pointer}' +
+    '.tip{text-align:center;color:#999;font-size:12px;padding:8px}' +
+    '@media print{' +
+      '.top-bar,.print-btn,.tip{display:none!important}' +
+      'body{padding:0}' +
+      '.plan-day{border:none!important;page-break-inside:avoid}' +
+    '}' +
+    '</style></head><body>' +
+    '<div class="top-bar"><a href="javascript:history.back()">← 返回</a></div>' +
+    '<button class="print-btn" onclick="window.print()">🖨️ 保存为 PDF / 打印</button>' +
+    '<p class="tip">💡 点击上方按钮 → 选择「存储到文件」→ 即可保存为 PDF 并转发微信</p>' +
+    el.innerHTML.replace(/style="display:\s*none[^"]*"/g,'') +
+    '<button class="print-btn" onclick="window.print()" style="margin-bottom:24px">🖨️ 保存为 PDF / 打印</button>' +
+    '<p class="tip">💡 iOS: 打印界面 → 双指放大预览 → 右上角分享 → 存储到文件<br>Android: 打印界面 → 保存为 PDF</p>' +
+    '</body></html>';
+
+  // Make all answers visible and days expanded
+  html = html.replace(/style="display:\s*none[^"]*"/gi,'')
+             .replace(/class="plan-day-body hide"/g,'class="plan-day-body"')
+             .replace(/👀/g,'');
+
+  var blob = new Blob([html], {type: 'text/html;charset=utf-8'});
   var url = URL.createObjectURL(blob);
-  window.open(url, '_blank');
+  var w = window.open(url, '_blank');
+  if (!w) { window.location.href = url; }
 }
 
 function printPlan() {
