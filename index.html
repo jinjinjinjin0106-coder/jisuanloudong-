@@ -1634,6 +1634,12 @@ function renderQuickReport() {
       <p style="font-size:12px;opacity:0.7;margin-top:8px;">添加微信 · 发送诊断报告截图 · 当天交付</p>
     </div>
 
+    `;
+  if (problemCount > 0) {
+    var quickCodes = selectedErrors.map(function(e) { return e.code; }).join(',');
+    reportHTML += '\n    <div class="card" style="text-align:center;background:linear-gradient(135deg,#e8f8f5,#d1f2eb);">\n      <p style="font-size:15px;font-weight:700;margin-bottom:8px;">📝 生成一周练习计划</p>\n      <p style="font-size:13px;color:var(--text-light);margin-bottom:12px;">根据上面 ' + problemCount + ' 个漏洞，自动生成 7 天专项练习</p>\n      <a href="practice.html?grade=' + state.quick.grade + '&codes=' + quickCodes + '" style="display:inline-block;padding:12px 24px;background:#27ae60;color:#fff;border-radius:8px;text-decoration:none;font-size:15px;font-weight:600;">🚀 去生成练习计划</a>\n    </div>';
+  }
+  reportHTML += `
     <div class="card" style="text-align:center;">
       <p style="font-size:13px;color:var(--text-light);">快速诊断不够细？试试逐条逐类勾选</p>
       <button class="btn btn-outline btn-small" onclick="switchToDetailed()" style="margin-top:8px;">🔍 切换到详细诊断</button>
@@ -1855,6 +1861,8 @@ function renderDetailReport() {
       <p style="font-size:12px;opacity:0.7;margin-top:8px;">添加微信 · 发送诊断报告截图 · 当天交付</p>
     </div>
   `;
+  var detailCodes = Object.keys(state.detail.checkedItems).join(',');
+  reportHTML += '\n    <div class="card" style="text-align:center;background:linear-gradient(135deg,#e8f8f5,#d1f2eb);">\n      <p style="font-size:15px;font-weight:700;margin-bottom:8px;">📝 生成一周练习计划</p>\n      <p style="font-size:13px;color:var(--text-light);margin-bottom:12px;">根据上面 ' + totalChecked + ' 个漏洞，自动生成 7 天专项练习</p>\n      <a href="practice.html?grade=' + state.detail.grade + '&codes=' + detailCodes + '" style="display:inline-block;padding:12px 24px;background:#27ae60;color:#fff;border-radius:8px;text-decoration:none;font-size:15px;font-weight:600;">🚀 去生成练习计划</a>\n    </div>';
 
   $('#detailReportContainer').innerHTML = reportHTML;
   // Scroll to report

@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>小猴数学 · 一周练习计划</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif; background: #f8f9fa; color: #2c3e50; max-width: 480px; margin: 0 auto; min-height: 100vh; }
+.header { background: linear-gradient(135deg, #2c3e50, #34495e); color: #fff; padding: 16px; text-align: center; font-size: 20px; font-weight: 700; }
+.card { background: #fff; border-radius: 12px; padding: 16px; margin: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+h3 { font-size: 16px; margin-bottom: 10px; }
+.grade-row { display: flex; gap: 8px; margin-bottom: 12px; }
+.grade-btn { flex: 1; padding: 12px; border: 2px solid #ddd; border-radius: 10px; background: #fff; text-align: center; font-size: 14px; font-weight: 600; cursor: pointer; }
+.grade-btn.on { border-color: #e67e22; background: #fef9e7; }
+.cat-title { padding: 8px 12px; margin: 8px 0 4px; border-radius: 8px; font-size: 14px; font-weight: 700; }
+.chip { display: inline-block; padding: 6px 10px; margin: 3px; border: 2px solid #ddd; border-radius: 8px; font-size: 13px; cursor: pointer; }
+.chip.on { border-color: #e67e22; background: #fef9e7; font-weight: 700; }
+.btn { display: block; width: 100%; padding: 14px; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; text-align: center; margin-top: 12px; }
+.btn-go { background: #27ae60; color: #fff; }
+.btn-go:disabled { background: #ccc; }
+.plan-day { border: 1px solid #ddd; border-radius: 10px; margin-bottom: 8px; overflow: hidden; }
+.plan-day-top { padding: 10px 14px; background: #f0faf4; cursor: pointer; }
+.plan-day-body { padding: 10px 14px; }
+.plan-day-body.hide { display: none; }
+ol { padding-left: 18px; line-height: 2.2; font-size: 14px; }
+.ans { display: none; color: #27ae60; font-weight: 600; font-size: 13px; margin-left: 4px; }
+.footer { text-align: center; padding: 20px; color: #999; font-size: 12px; }
+@media print { .header, .footer, .btn, .no-print { display: none !important; } .card { box-shadow: none !important; border: none !important; padding: 4px 0 !important; margin: 0 0 6px 0 !important; } .ans { display: inline !important; color: #555 !important; } span[onclick] { display: none !important; } .hide { display: block !important; } }
+</style>
+</head>
+<body>
+<div class="header">🐵 小猴数学 · 一周练习计划</div>
+<div id="app"></div>
+<div class="footer">小猴数学工作室</div>
+
+<script>
+var DATA = {
+  '1-2': { grade: 'g12', cats: [
+    { id: 'A', name: 'A. 基本口算', color: '#d6eaf8', codes: [
+      { id: 'A1', name: '20以内加法' },{ id: 'A2', name: '20以内减法' },{ id: 'A3', name: '凑十法' },{ id: 'A4', name: '破十法' },{ id: 'A5', name: '速度焦虑' }]},
+    { id: 'B', name: 'B. 进位加法', color: '#d5f5e3', codes: [
+      { id: 'B1', name: '个位忘进位' },{ id: 'B2', name: '十位忘进位' },{ id: 'B3', name: '连续进位漏' },{ id: 'B4', name: '整百进位错' },{ id: 'B5', name: '进位后遗忘' }]},
+    { id: 'C', name: 'C. 退位减法', color: '#fdebd0', codes: [
+      { id: 'C1', name: '忘退位' },{ id: 'C2', name: '被借后忘减1' },{ id: 'C3', name: '连续退位错' },{ id: 'C4', name: '含0退位乱' },{ id: 'C5', name: '整千退位乱' },{ id: 'C6', name: '退位标记乱' }]},
+    { id: 'D', name: 'D. 乘法口诀', color: '#e8daef', codes: [
+      { id: 'D1', name: '口诀记混' },{ id: 'D2', name: '相近混淆' },{ id: 'D3', name: '1/0规则混' },{ id: 'D4', name: '交换律不会' },{ id: 'D5', name: '竖式错位' }]},
+    { id: 'E', name: 'E. 除法余数', color: '#fadbd8', codes: [
+      { id: 'E1', name: '反查错' },{ id: 'E2', name: '余数≥除数' },{ id: 'E3', name: '商余写反' },{ id: 'E4', name: '不会验算' },{ id: 'E5', name: '商位置错' }]},
+    { id: 'F', name: 'F. 书写审题', color: '#d1f2eb', codes: [
+      { id: 'F1', name: '数位未对齐' },{ id: 'F2', name: '看错符号' },{ id: 'F3', name: '抄错数字' },{ id: 'F4', name: '横线不规范' }]},
+  ]},
+  '3-4': { grade: 'g34', cats: [
+    { id: 'A', name: 'A. 小数读写', color: '#d6eaf8', codes: [
+      { id: 'A1', name: '数位混淆' },{ id: 'A2', name: '读写错误' },{ id: 'A3', name: '互化错' },{ id: 'A4', name: '比大小错' }]},
+    { id: 'B', name: 'B. 小数加减', color: '#d5f5e3', codes: [
+      { id: 'B1', name: '点未对齐' },{ id: 'B2', name: '补0错' },{ id: 'B3', name: '整减小对齐错' },{ id: 'B4', name: '进退位忘' },{ id: 'B5', name: '连进退错' }]},
+    { id: 'C', name: 'C. 小数乘法', color: '#fdebd0', codes: [
+      { id: 'C1', name: '点定位错' },{ id: 'C2', name: '位数统计错' },{ id: 'C3', name: '整数转化错' },{ id: 'C4', name: '末尾0处理' },{ id: 'C5', name: '对齐错' },{ id: 'C6', name: '多位混乱' }]},
+    { id: 'D', name: 'D. 小数除法', color: '#e8daef', codes: [
+      { id: 'D1', name: '除数化整忘乘' },{ id: 'D2', name: '商点不对齐' },{ id: 'D3', name: '忘写0' },{ id: 'D4', name: '余数处理错' },{ id: 'D5', name: '除不尽处理' },{ id: 'D6', name: '转化错' }]},
+    { id: 'E', name: 'E. 近似/换算', color: '#fadbd8', codes: [
+      { id: 'E1', name: '四舍五入反' },{ id: 'E2', name: '保留位看错' },{ id: 'E3', name: '进率记错' },{ id: 'E4', name: '小数点移错' },{ id: 'E5', name: '末尾0遗漏' }]},
+    { id: 'F', name: 'F. 审题习惯', color: '#d1f2eb', codes: [
+      { id: 'F1', name: '点看漏' },{ id: 'F2', name: '符号看错' },{ id: 'F3', name: '抄错位数' },{ id: 'F4', name: '书写潦草' }]},
+  ]},
+  '5-6': { grade: 'g56', cats: [
+    { id: 'A', name: 'A. 分数加减', color: '#d6eaf8', codes: [
+      { id: 'A1', name: '未通分' },{ id: 'A2', name: '分子忘乘' },{ id: 'A3', name: '忘约分' },{ id: 'A4', name: '带分数乱' },{ id: 'A5', name: '整减分退位' }]},
+    { id: 'B', name: 'B. 分数乘法', color: '#d5f5e3', codes: [
+      { id: 'B1', name: '漏乘' },{ id: 'B2', name: '只乘分子' },{ id: 'B3', name: '未化假分数' },{ id: 'B4', name: '约分时机错' },{ id: 'B5', name: '忘约分' }]},
+    { id: 'C', name: 'C. 分数除法', color: '#fdebd0', codes: [
+      { id: 'C1', name: '倒数取错' },{ id: 'C2', name: '÷忘变×' },{ id: 'C3', name: '÷整数错' },{ id: 'C4', name: '未化假分数' },{ id: 'C5', name: '连除只变1个' }]},
+    { id: 'D', name: 'D. 约分通分', color: '#e8daef', codes: [
+      { id: 'D1', name: '公因数错' },{ id: 'D2', name: '约不彻底' },{ id: 'D3', name: '公分母错' },{ id: 'D4', name: '交叉约错' },{ id: 'D5', name: '互化不会' }]},
+    { id: 'E', name: 'E. 混合运算', color: '#fadbd8', codes: [
+      { id: 'E1', name: '顺序颠倒' },{ id: 'E2', name: '忽略括号' },{ id: 'E3', name: '多层括号' },{ id: 'E4', name: '同级顺序' },{ id: 'E5', name: '步骤停顿' }]},
+    { id: 'F', name: 'F. 简便运算', color: '#d1f2eb', codes: [
+      { id: 'F1', name: '分配律漏乘' },{ id: 'F2', name: '提公因数' },{ id: 'F3', name: '减法性质' },{ id: 'F4', name: '除法性质' },{ id: 'F5', name: '滥用定律' },{ id: 'F6', name: '不简便' }]},
+    { id: 'G', name: 'G. 百分数/比', color: '#fce4ec', codes: [
+      { id: 'G1', name: '互化错' },{ id: 'G2', name: '求比化简混' },{ id: 'G3', name: '只用一边' },{ id: 'G4', name: '交叉方向错' }]},
+  ]}
+};
+
+// ===== HELPERS =====
+function rand(min,max){return Math.floor(Math.random()*(max-min+1))+min;}
+function shuffle(a){var b=a.slice();for(var i=b.length-1;i>0;i--){var j=rand(0,i);var t=b[i];b[i]=b[j];b[j]=t;}return b;}
+function gcd(a,b){return b===0?a:gcd(b,a%b);}
+function frac(n,d){return d===1?String(n):n+'/'+d;}
+function simp(n,d){var g=gcd(Math.abs(n),Math.abs(d));return[n/g,d/g];}
+
+// ===== GENERATORS =====
+var G = {
+g12:{A:function(c,n){n=n||5;var q=[];for(var i=0;i<n;i++){var a,b;if(c==='A1'){a=rand(6,9);b=rand(3,9);q.push({q:a+'+'+b,a:a+b});}else if(c==='A2'){a=rand(11,19);b=rand(2,9);q.push({q:a+'-'+b,a:a-b});}else if(c==='A3'){a=rand(7,9);b=rand(4,8);q.push({q:a+'+'+b+'(凑十)',a:a+b});}else if(c==='A4'){a=rand(11,18);b=rand(3,8);q.push({q:a+'-'+b+'(破十)',a:a-b});}else{a=rand(6,9);b=rand(4,9);q.push({q:a+'+'+b,a:a+b});}}return q;},B:function(c,n){n=n||5;var q=[];for(var i=0;i<n;i++){var a,b;if(c==='B1'){a=rand(2,7)*10+rand(1,9);b=rand(2,9);q.push({q:a+'+'+b,a:a+b});}else if(c==='B2'){a=rand(2,6)*10+rand(5,9);b=rand(3,7)*10+rand(3,9);q.push({q:a+'+'+b,a:a+b});}else if(c==='B4'){a=rand(2,8)*100;b=rand(2,8)*100;q.push({q:a+'+'+b,a:a+b});}else{a=rand(5,8)*10+rand(6,9);b=rand(2,5)*10+rand(4,9);q.push({q:a+'+'+b,a:a+b});}}return q;},C:function(c,n){n=n||5;var q=[];for(var i=0;i<n;i++){var t,o,s,a,b;if(c==='C1'){t=rand(2,9);o=rand(1,6);s=rand(o+1,9);a=t*10+o;q.push({q:a+'-'+s,a:a-s});}else if(c==='C2'){a=rand(3,6)*10+rand(0,5);b=rand(1,4)*10+rand(6,9);q.push({q:a+'-'+b,a:a-b});}else{a=rand(2,8)*100;b=rand(2,8)*10+rand(3,9);q.push({q:a+'-'+b,a:a-b});}}return q;},D:function(c,n){n=n||5;var q=[],t=[[6,7],[7,8],[6,8],[7,9],[6,9],[8,9]];for(var i=0;i<n;i++){if(c==='D3'){var v=rand(2,9);q.push(Math.random()>0.5?{q:v+'×1',a:v}:{q:v+'×0',a:0});}else if(c==='D4'){var a=rand(2,9),b=rand(2,9);q.push({q:b+'×'+a,a:a*b});}else{var p=t[rand(0,5)];q.push({q:p[0]+'×'+p[1],a:p[0]*p[1]});}}return q;},E:function(c,n){n=n||5;var q=[];for(var i=0;i<n;i++){var d,r,m;if(c==='E2'){d=rand(3,8);r=rand(2,6);m=rand(1,d-1);q.push({q:(d*r+m)+'÷'+d,a:r+'……'+m});}else if(c==='E3'){d=rand(3,7);r=rand(2,5);m=rand(1,d-1);q.push({q:(d*r+m)+'÷'+d,a:r+'……'+m});}else if(c==='E4'){d=rand(3,7);r=rand(2,6);m=rand(1,d-1);q.push({q:'验算:'+r+'×'+d+'+'+m,a:d*r+m});}else{d=rand(3,8);r=rand(2,6);q.push({q:(d*r)+'÷'+d,a:r});}}return q;},F:function(c,n){n=n||4;var p={F1:['列竖式:23+45','列竖式:56+32','列竖式:78-35','列竖式:91-47'],F2:['圈符号:34+27','圈符号:56-19','圈符号:8×7','圈符号:42÷6'],F3:['抄写:135+246','核对:789-453','抄写:2046+3518'],F4:['田字格写0-9各5遍','用尺画横线','抄写:35+27=62']};return shuffle(p[c]||p.F1).slice(0,n).map(function(t){return{q:t,a:'—'};});}},
+g34:{A:function(c,n){n=n||5;var q=[];for(var i=0;i<n;i++){if(c==='A2'){var v=rand(1,9),d=Math.pow(10,rand(1,3));q.push({q:'读出:'+(v/d),a:String(v/d)});}else if(c==='A3'){var d=[2,4,5,8,10][rand(0,4)];q.push({q:'1/'+d+'化小数',a:String(1/d)});}else{var a=(rand(10,99)/100).toFixed(2),b=(rand(10,99)/100).toFixed(2);q.push({q:'比大小:'+a+'○'+b,a:+a>+b?'>':+a<+b?'<':'='});}}return q;},B:function(c,n){n=n||5;var q=[];for(var i=0;i<n;i++){if(c==='B1'){var a=(rand(1,9)+rand(1,9)/10).toFixed(1),b=(rand(1,9)/100+rand(1,9)/10).toFixed(2);q.push({q:a+'+'+b,a:+(+a + +b).toFixed(2)});}else if(c==='B3'){var a=rand(3,9),b=(rand(1,9)/10+rand(1,9)/100).toFixed(2);q.push({q:a+'-'+b,a:+(a - +b).toFixed(2)});}else{var a=(rand(2,8)+rand(1,9)/10).toFixed(1),b=(rand(1,7)+rand(1,9)/10+rand(1,9)/100).toFixed(2);q.push({q:a+'+'+b,a:+(+a + +b).toFixed(2)});}}return q;},C:function(c,n){n=n||5;var q=[];for(var i=0;i<n;i++){if(c==='C1'){var a=rand(1,9)/10,b=rand(1,9)/10;q.push({q:a+'×'+b,a:+(a*b).toFixed(2)});}else{var a=(rand(1,5)+rand(1,9)/10).toFixed(1),b=rand(2,8);q.push({q:a+'×'+b,a:+(+a*b).toFixed(1)});}}return q;},D:function(c,n){n=n||5;var q=[];for(var i=0;i<n;i++){if(c==='D1'){var b=rand(2,8)/10,a=b*rand(2,9);q.push({q:a.toFixed(1)+'÷'+b,a:Math.round(a/b)});}else if(c==='D3'){var b=rand(3,9),a=b*rand(1,3)*10+rand(1,b-1);q.push({q:a+'÷'+b+'(余?)',a:Math.floor(a/b)+'……'+(a%b)});}else{q.push({q:(rand(2,9)*10+rand(1,9))+'÷'+rand(2,9),a:'—'});}}return q;},E:function(c,n){n=n||5;var q=[];for(var i=0;i<n;i++){if(c==='E1'){var v=(rand(10,99)/100).toFixed(2);q.push({q:v+'保留一位',a:(+v).toFixed(1)});}else{var v=rand(1,9);q.push({q:v+'千克=?克',a:v*1000});}}return q;},F:function(c,n){n=n||4;var p={F1:['圈小数点:3.14+2.8','圈点:5.6-1.27'],F2:['圈符号:3.5×4.2','标符:24.8÷0.4'],F3:['抄写:3.14159','核对:2.718+1.414'],F4:['竖式:4.56×3.2','书写:78.4÷0.8']};return shuffle(p[c]||p.F1).slice(0,n).map(function(t){return{q:t,a:'—'};});}},
+g56:{A:function(c,n){n=n||5;var q=[],d=[2,3,4,5,6,8,9,10,12];for(var i=0;i<n;i++){var d1=d[rand(0,4)],d2=d[rand(5,8)],n1=rand(1,d1-1),n2=rand(1,d2-1),cd=d1*d2/gcd(d1,d2),s=n1*(cd/d1)+n2*(cd/d2),r=simp(s,cd);q.push({q:frac(n1,d1)+'+'+frac(n2,d2),a:frac(r[0],r[1])});}return q;},B:function(c,n){n=n||5;var q=[];for(var i=0;i<n;i++){var n1=rand(2,5),d1=rand(3,7),n2=rand(2,5),d2=rand(3,7),r=simp(n1*n2,d1*d2);q.push({q:frac(n1,d1)+'×'+frac(n2,d2),a:frac(r[0],r[1])});}return q;},C:function(c,n){n=n||5;var q=[];for(var i=0;i<n;i++){var n1=rand(2,5),d1=rand(3,7),n2=rand(2,5),d2=rand(3,7),r=simp(n1*d2,d1*n2);q.push({q:frac(n1,d1)+'÷'+frac(n2,d2),a:frac(r[0],r[1])});}return q;},D:function(c,n){n=n||5;var q=[];for(var i=0;i<n;i++){var g=rand(2,6),nm=g*rand(2,6),dn=g*rand(3,8),r=simp(nm,dn);q.push({q:'约分:'+nm+'/'+dn,a:frac(r[0],r[1])});}return q;},E:function(c,n){n=n||5;var p=[{q:'3+4×2',a:11},{q:'8-12÷3',a:4},{q:'(3+5)×2',a:16},{q:'24÷3×2',a:16},{q:'15-2×3+4',a:13},{q:'(6+4)×(5-2)',a:30},{q:'36÷(3+6)',a:4},{q:'8×3-10÷2',a:19}];return shuffle(p).slice(0,n);},F:function(c,n){n=n||5;var p=[{q:'25×7×4(交换律)',a:700},{q:'36×27+36×73(公因数)',a:3600},{q:'125×32',a:4000},{q:'98×5(100-2)',a:490},{q:'456-98',a:358},{q:'78×99',a:7722}];return shuffle(p).slice(0,n);},G:function(c,n){n=n||5;var q=[];for(var i=0;i<n;i++){if(c==='G1'){var v=rand(1,9)*5;q.push({q:v+'%=?小数',a:String(v/100)});}else if(c==='G2'){var a=rand(2,8),b=rand(2,8);q.push({q:'求比值:'+a+':'+b,a:String(a/b)});}else{var a=rand(2,5),b=rand(3,7),c=rand(2,4);q.push({q:'解比例:'+a+':'+b+'='+c+':x',a:Math.round(b*c/a*10)/10});}}return q;}},
+};
+
+var picked = {};
+
+// ===== RENDER =====
+function r() {
+  var selGrade = picked._grade || null;
+  var h = [];
+
+  // Step 1: Grade selector
+  h.push('<div class="card"><h3>第一步：选择年级</h3><div class="grade-row">');
+  Object.keys(DATA).forEach(function(k) {
+    h.push('<div class="grade-btn'+(selGrade===k?' on':'')+'" onclick="pickGrade(\''+k+'\')">'+k+'年级</div>');
+  });
+  h.push('</div></div>');
+
+  // Step 2: Code checklist
+  if (selGrade && DATA[selGrade]) {
+    var info = DATA[selGrade];
+    var codes = [];
+    h.push('<div class="card"><h3>第二步：勾选错因码</h3><p style="font-size:12px;color:#999;margin-bottom:8px;">对照诊断报告的错因码勾选</p>');
+    info.cats.forEach(function(cat) {
+      h.push('<div class="cat-title" style="background:'+cat.color+'">'+cat.name+'</div>');
+      cat.codes.forEach(function(cd) {
+        var on = picked[cd.id];
+        h.push('<span class="chip'+(on?' on':'')+'" onclick="toggleCode(\''+cd.id+'\')">'+cd.id+' '+cd.name+'</span>');
+        if (on) codes.push(cd.id);
+      });
+    });
+    var total = codes.length;
+    h.push('<button class="btn btn-go"'+(total===0?' disabled':'')+' onclick="generate()">🎯 生成一周练习计划（已选 '+total+' 个错因）</button>');
+    h.push('</div>');
+  }
+
+  document.getElementById('app').innerHTML = h.join('');
+}
+
+function pickGrade(k) {
+  picked = { _grade: k };
+  r();
+}
+
+function toggleCode(id) {
+  if (picked[id]) { delete picked[id]; }
+  else { picked[id] = true; }
+  r();
+}
+
+function generate() {
+  var gradeKey = DATA[picked._grade].grade;
+  var codeList = Object.keys(picked).filter(function(k) { return k !== '_grade'; });
+  if (codeList.length === 0 || !G[gradeKey]) return;
+
+  var gen = G[gradeKey];
+
+  // Group by category
+  var byCat = {};
+  codeList.forEach(function(c) {
+    var cat = c.charAt(0);
+    if (!byCat[cat]) byCat[cat] = [];
+    if (byCat[cat].indexOf(c) < 0) byCat[cat].push(c);
+  });
+
+  var allC = Object.keys(byCat);
+  var base = allC.filter(function(x){return x==='A';});
+  var core = allC.filter(function(x){return'BCD'.indexOf(x)>=0;});
+
+  function mk(t, cats, n, max) {
+    var qs = [];
+    cats.forEach(function(cat) {
+      byCat[cat].forEach(function(code) {
+        if (gen[cat]) { var it = gen[cat](code, n); it.forEach(function(q){q._c=code;}); qs = qs.concat(it); }
+      });
+    });
+    if (qs.length === 0) return null;
+    if (qs.length > max) qs = shuffle(qs).slice(0, max);
+    return { title: t, qs: qs };
+  }
+
+  var plan = [];
+  if (base.length) { [1,2].forEach(function(d) { var day = mk('第'+d+'天', base, 3, 10); if (day) { day.desc = '基础漏洞专项——先把地基补牢'; plan.push(day); } }); }
+  if (core.length) { [3,4].forEach(function(d) { var day = mk('第'+d+'天', core, 3, 10); if (day) { day.desc = '核心技能专项——攻克高频错误'; plan.push(day); } }); }
+  [5,6].forEach(function(d) { var day = mk('第'+d+'天', allC, 2, 12); if (day) { day.desc = '综合混合练习——不同题型交叉'; plan.push(day); } });
+  var d7 = mk('第7天·综合检测', allC, 2, 15); if (d7) { d7.desc = '一周总检验——限时完成，检验修复效果 ⏱'; plan.push(d7); }
+
+  // Get code name
+  function cn(code) {
+    var info = DATA[picked._grade];
+    if (!info) return code;
+    for (var i = 0; i < info.cats.length; i++) {
+      var f = info.cats[i].codes.find(function(x) { return x.id === code; });
+      if (f) return f.name;
+    }
+    return code;
+  }
+
+  // Render plan
+  var h = [];
+  h.push('<div class="card"><h3>📋 一周计算练习计划</h3>');
+  h.push('<p style="font-size:13px;color:#999;margin-bottom:12px;">'+picked._grade+'年级 · '+codeList.length+'个漏洞 · 每天10~15题</p>');
+
+  plan.forEach(function(d, di) {
+    var did = 'd'+di;
+    // Group by code
+    var grp = {};
+    d.qs.forEach(function(q) {
+      var c = q._c || '?';
+      if (!grp[c]) grp[c] = { n: cn(c), qs: [] };
+      grp[c].qs.push(q);
+    });
+
+    h.push('<div class="plan-day"><div class="plan-day-top" onclick="var e=document.getElementById(\''+did+'\');e.classList.toggle(\'hide\')">');
+    h.push('<strong>'+d.title+'</strong> <span style="font-size:12px;color:#999;margin-left:8px;">'+d.desc+'</span></div>');
+    h.push('<div class="plan-day-body" id="'+did+'">');
+
+    var qn = 0;
+    Object.keys(grp).forEach(function(c) {
+      var g = grp[c];
+      h.push('<div style="margin-bottom:8px;"><div style="font-size:12px;font-weight:700;color:#e67e22;margin-bottom:2px;">📌 '+c+' '+g.n+'</div>');
+      h.push('<ol start="'+(qn+1)+'">');
+      g.qs.forEach(function(q) {
+        var aid = 'a'+di+'_'+qn;
+        h.push('<li><span style="font-weight:600;">'+q.q+'</span> <span style="color:#e67e22;font-size:11px;cursor:pointer;" onclick="var a=document.getElementById(\''+aid+'\');a.style.display=a.style.display==\'none\'?\'inline\':\'none\';">👀</span> <span id="'+aid+'" class="ans">= '+q.a+'</span></li>');
+        qn++;
+      });
+      h.push('</ol></div>');
+    });
+    h.push('</div></div>');
+  });
+
+  h.push('<div style="display:flex;gap:10px;margin-top:16px;">');
+  h.push('<button class="btn" style="flex:1;background:#fff;border:2px solid #e67e22;color:#e67e22;" onclick="window.print()">🖨️ 打印</button>');
+  h.push('<button class="btn" style="flex:1;background:#fff;border:2px solid #e67e22;color:#e67e22;" onclick="var a=document.querySelectorAll(\'.ans\');for(var i=0;i<a.length;i++)a[i].style.display=\'inline\';">🔍 显示全部答案</button>');
+  h.push('</div>');
+  h.push('<button class="btn" style="background:#fff;border:2px solid #ccc;color:#999;margin-top:8px;" onclick="location.href=location.pathname;">🔄 重新选择错因</button>');
+  h.push('<p style="font-size:11px;color:#999;text-align:center;margin-top:8px;">💡 做完家长核对答案 · 连续3天全对=漏洞已修复 ✓</p></div>');
+
+  document.getElementById('app').innerHTML = h.join('');
+}
+
+// ===== INIT: URL params or normal flow =====
+(function() {
+  var params = new URLSearchParams(window.location.search);
+  var gp = params.get('grade');
+  var cp = params.get('codes');
+  if (gp && cp) {
+    var gm = { g12: '1-2', g34: '3-4', g56: '5-6' };
+    var gk = gm[gp];
+    if (gk && DATA[gk]) {
+      picked._grade = gk;
+      cp.split(',').forEach(function(c) { var x = c.trim(); if (x) picked[x] = true; });
+      generate();
+      return;
+    }
+  }
+  r();
+})();
+</script>
+</body>
+</html>
