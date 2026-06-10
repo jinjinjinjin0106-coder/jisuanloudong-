@@ -26,7 +26,7 @@ h3 { font-size: 16px; margin-bottom: 10px; }
 ol { padding-left: 18px; line-height: 2.2; font-size: 14px; }
 .ans { display: none; color: #27ae60; font-weight: 600; font-size: 13px; margin-left: 4px; }
 .footer { text-align: center; padding: 20px; color: #999; font-size: 12px; }
-@media print { .header, .footer, .btn, .no-print { display: none !important; } .card { box-shadow: none !important; border: none !important; padding: 4px 0 !important; margin: 0 0 6px 0 !important; } .ans { display: inline !important; color: #555 !important; } span[onclick] { display: none !important; } .hide { display: block !important; } }
+@media print { .header, .footer, .btn, .no-print { display: none !important; } .card { box-shadow: none !important; border: none !important; padding: 4px 0 !important; margin: 0 0 6px 0 !important; } .ans { display: inline !important; color: #555 !important; } span[style*="cursor:pointer"] { display: none !important; } .plan-day-body.hide { display: block !important; } body { background: #fff !important; } }
 </style>
 </head>
 <body>
@@ -250,7 +250,7 @@ function generate() {
   h.push('<button class="btn" style="flex:1;background:#fff;border:2px solid #e67e22;color:#e67e22;" onclick="printPlan()">🖨️ 打印</button>');
   h.push('<button class="btn" style="flex:1;background:#fff;border:2px solid #e67e22;color:#e67e22;" onclick="var a=document.querySelectorAll(\'.ans\');for(var i=0;i<a.length;i++)a[i].style.display=\'inline\';">🔍 显示全部答案</button>');
   h.push('</div>');
-  h.push('<button class="btn" style="background:#27ae60;color:#fff;" onclick="generatePDF()">📥 生成 PDF（微信可直接打开）</button>');
+  h.push('<button class="btn" style="background:#27ae60;color:#fff;" onclick="toggleSheet()">📄 生成练习单（打印 / 存图）</button>');
   h.push('<button class="btn" style="background:#fff;border:2px solid #ccc;color:#999;margin-top:8px;" onclick="location.href=location.pathname;">🔄 重新选择错因</button>');
   h.push('<p style="font-size:11px;color:#999;text-align:center;margin-top:8px;">💡 做完家长核对答案 · 连续3天全对=漏洞已修复 ✓</p></div>');
 
@@ -275,110 +275,138 @@ function generate() {
   r();
 })();
 
-function generatePDF() {
-  // clean up old overlay / loading
-  var old = document.getElementById('pdf-overlay');
-  if (old) old.parentNode.removeChild(old);
-  var oldLd = document.getElementById('pdf-loading');
-  if (oldLd) oldLd.parentNode.removeChild(oldLd);
+// ===== 练习单/打印模式 =====
+var _sheetBackup = null;
+
+function toggleSheet() {
+  if (_sheetBackup) {
+    // restore
+    document.body.innerHTML = '';
+    document.body.appendChild(_sheetBackup);
+    _sheetBackup = null;
+    window.scrollTo(0, 0);
+    return;
+  }
 
   var el = document.getElementById('plan-content');
   if (!el) { alert('请先生成练习计划'); return; }
 
-  // --- loading ---
-  var loading = document.createElement('div');
-  loading.id = 'pdf-loading';
-  loading.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.65);z-index:100000;display:flex;align-items:center;justify-content:center;color:#fff;font-size:17px;flex-direction:column;';
-  loading.innerHTML = '<div style="font-size:44px;margin-bottom:14px;">⏳</div><div>正在生成练习单图片…</div>';
-  document.body.appendChild(loading);
+  // backup current body
+  var bodyChildren = [];
+  for (var i = 0; i < document.body.childNodes.length; i++) {
+    bodyChildren.push(document.body.childNodes[i].cloneNode(true));
+  }
 
-  // --- clone off-screen ---
+  // clean up plan-content
   var clone = el.cloneNode(true);
   clone.querySelectorAll('.ans').forEach(function(a) { a.style.display = 'inline'; });
   clone.querySelectorAll('.plan-day-body.hide').forEach(function(b) { b.classList.remove('hide'); });
   clone.querySelectorAll('span[onclick]').forEach(function(s) { s.parentNode.removeChild(s); });
   clone.querySelectorAll('button, a').forEach(function(n) { n.parentNode.removeChild(n); });
-  // remove tip text at bottom
-  var tips = clone.querySelectorAll('p');
-  for (var i = tips.length - 1; i >= 0; i--) {
-    var t = tips[i];
-    if (t.textContent.indexOf('连续3天全对') >= 0) { t.parentNode.removeChild(t); }
-  }
+  // remove bottom tip
+  clone.querySelectorAll('p').forEach(function(p) {
+    if (p.textContent.indexOf('连续3天全对') >= 0) { p.parentNode.removeChild(p); }
+  });
 
-  clone.style.cssText = 'position:fixed;left:0;top:0;width:440px;background:#fff;padding:16px;z-index:-1;';
-  document.body.appendChild(clone);
+  // build sheet page
+  var frag = document.createDocumentFragment();
 
-  // --- html2canvas ---
-  try {
-    html2canvas(clone, { scale: 2, backgroundColor: '#ffffff', logging: false, useCORS: true }).then(function(canvas) {
-      document.body.removeChild(clone);
-      document.body.removeChild(loading);
+  // toolbar
+  var bar = document.createElement('div');
+  bar.className = 'no-print';
+  bar.style.cssText = 'position:sticky;top:0;z-index:100;background:#2c3e50;color:#fff;padding:10px 12px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;';
+  bar.innerHTML =
+    '<button onclick="toggleSheet()" style="background:rgba(255,255,255,0.15);color:#fff;border:none;padding:8px 14px;border-radius:6px;font-size:13px;cursor:pointer;">✕ 返回</button>' +
+    '<span style="flex:1;text-align:center;font-weight:700;font-size:14px;">🐵 练习单预览</span>' +
+    '<button onclick="doPrint()" style="background:#fff;color:#2c3e50;border:none;padding:8px 14px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;">🖨️ 打印PDF</button>' +
+    '<button onclick="saveSheetImg()" style="background:#27ae60;color:#fff;border:none;padding:8px 14px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;">📸 存图片</button>';
+  frag.appendChild(bar);
 
-      var dataUrl = canvas.toDataURL('image/png');
-      canvas.toBlob(function(blob) {
-        window._pdfBlobUrl = URL.createObjectURL(blob);
-      }, 'image/png');
+  // plan content
+  clone.removeAttribute('id');
+  clone.style.cssText = 'background:#fff;padding:8px 12px 24px;max-width:500px;margin:0 auto;';
+  frag.appendChild(clone);
 
-      // --- overlay ---
-      var ov = document.createElement('div');
-      ov.id = 'pdf-overlay';
-      ov.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#e8e8e8;z-index:99999;overflow-y:auto;-webkit-overflow-scrolling:touch;';
+  // backup
+  var wrapper = document.createElement('div');
+  bodyChildren.forEach(function(c) { wrapper.appendChild(c); });
+  _sheetBackup = wrapper;
 
-      var h = [];
-      h.push('<div style="position:sticky;top:0;background:#2c3e50;color:#fff;z-index:10;padding:12px 16px;display:flex;align-items:center;gap:8px;">');
-      h.push('<a href="javascript:void(0)" onclick="document.getElementById(\'pdf-overlay\').remove()" style="color:#fff;text-decoration:none;font-size:26px;line-height:1;padding:0 4px;">✕</a>');
-      h.push('<span style="font-size:15px;font-weight:700;flex:1;text-align:center;">🐵 小猴数学 · 练习单</span>');
-      h.push('</div>');
-
-      h.push('<div style="max-width:500px;margin:0 auto;padding:10px;">');
-      h.push('<p style="text-align:center;color:#555;font-size:13px;margin:8px 0;">👇 <b>长按下方图片保存到相册</b>，再发到微信</p>');
-      h.push('<img src="' + dataUrl + '" style="display:block;width:100%;border-radius:6px;box-shadow:0 2px 16px rgba(0,0,0,0.2);" id="pdf-img">');
-      h.push('<div style="display:flex;gap:10px;margin:14px 0;flex-wrap:wrap;">');
-      h.push('<a href="' + dataUrl + '" download="小猴数学-练习计划.png" style="flex:1;display:block;padding:14px 8px;background:#27ae60;color:#fff;border-radius:8px;text-decoration:none;font-size:15px;font-weight:600;text-align:center;min-width:130px;">📥 下载图片</a>');
-      h.push('<button onclick="pdfPrint()" style="flex:1;padding:14px 8px;background:#e67e22;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;min-width:130px;">🖨️ 打印</button>');
-      h.push('</div>');
-      h.push('<p style="text-align:center;color:#999;font-size:12px;padding-bottom:20px;">💡 长按图片 → 保存 → 微信转发给家里打印机</p>');
-      h.push('</div>');
-
-      ov.innerHTML = h.join('');
-      window._pdfDataUrl = dataUrl;
-      document.body.appendChild(ov);
-      ov.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }).catch(function(e) {
-      document.body.removeChild(clone);
-      document.body.removeChild(loading);
-      alert('图片生成失败：' + (e && e.message || e) + '\n\n请截图保存，或使用下方的「打印」按钮。');
-    });
-  } catch(e) {
-    document.body.removeChild(clone);
-    document.body.removeChild(loading);
-    alert('html2canvas 加载失败，请刷新页面后重试。');
-  }
+  // replace body
+  document.body.innerHTML = '';
+  document.body.appendChild(frag);
+  window.scrollTo(0, 0);
 }
 
-function pdfPrint() {
-  var url = window._pdfDataUrl;
-  if (!url) { alert('请先生成练习单'); return; }
-
+function doPrint() {
   var ua = navigator.userAgent.toLowerCase();
-  var isWx = ua.indexOf('micromessenger') >= 0 || ua.indexOf('miniprogram') >= 0;
-
-  if (isWx) {
-    alert('微信内不支持直接打印\n\n请：\n1️⃣ 长按上方图片 → 保存到相册\n2️⃣ 在相册中打开图片\n3️⃣ 点击分享 → 打印');
+  if (ua.indexOf('micromessenger') >= 0 || ua.indexOf('miniprogram') >= 0) {
+    alert('⚠️ 微信内不支持打印\n\n请：\n1. 点击下方「存图片」保存到相册\n2. 或点右上角「…」→「在浏览器中打开」→ 再点打印');
     return;
   }
+  window.print();
+}
 
-  // open clean print page
-  var w = window.open('', '_blank');
-  if (w) {
-    w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>小猴数学-练习计划</title><style>body{margin:0;background:#fff;text-align:center}img{display:block;max-width:100%;height:auto;margin:0 auto}@media print{body{margin:0}img{width:100%;page-break-inside:avoid}}</style></head><body><img src="' + url + '" onload="setTimeout(function(){window.print()},300)"></body></html>');
-    w.document.close();
-  } else {
-    var a = document.createElement('a');
-    a.href = url;
-    a.download = '小猴数学-练习计划.png';
-    a.click();
-    alert('弹窗被拦截，已直接下载图片。\n请在相册中打开图片后打印。');
+function saveSheetImg() {
+  var plan = document.getElementById('plan-content');
+  var el = plan || document.querySelector('.card') || document.querySelector('#app > .card');
+  if (!el) {
+    el = document.querySelector('#app');
+  }
+  if (!el) { alert('未找到练习内容'); return; }
+
+  // loading
+  var ld = document.createElement('div');
+  ld.id = 'pdf-loading';
+  ld.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.65);z-index:100000;display:flex;align-items:center;justify-content:center;color:#fff;font-size:17px;flex-direction:column;';
+  ld.innerHTML = '<div style="font-size:44px;margin-bottom:14px;">⏳</div><div>正在生成图片…</div>';
+  document.body.appendChild(ld);
+
+  // clone and render
+  var c = el.cloneNode(true);
+  c.querySelectorAll('.ans').forEach(function(a) { a.style.display = 'inline'; });
+  c.querySelectorAll('.plan-day-body.hide').forEach(function(b) { b.classList.remove('hide'); });
+  c.querySelectorAll('span[onclick]').forEach(function(s) { s.parentNode.removeChild(s); });
+  c.querySelectorAll('button, a, .no-print').forEach(function(n) { n.parentNode.removeChild(n); });
+  c.style.cssText = 'position:fixed;left:0;top:0;width:440px;background:#fff;padding:16px;z-index:-1;';
+  c.removeAttribute('id');
+  document.body.appendChild(c);
+
+  try {
+    html2canvas(c, { scale: 2, backgroundColor: '#ffffff', logging: false, useCORS: true }).then(function(canvas) {
+      document.body.removeChild(c);
+      document.body.removeChild(ld);
+
+      var url = canvas.toDataURL('image/png');
+      window._pdfDataUrl = url;
+
+      // show image overlay
+      var ov = document.getElementById('img-overlay');
+      if (ov) ov.remove();
+      ov = document.createElement('div');
+      ov.id = 'img-overlay';
+      ov.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);z-index:99999;overflow-y:auto;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;align-items:center;';
+
+      ov.innerHTML =
+        '<div style="padding:12px;text-align:center;width:100%;">' +
+          '<span style="color:#fff;font-size:12px;">长按图片 → 保存到相册 → 微信转发</span>' +
+          '<button onclick="document.getElementById(\'img-overlay\').remove()" style="position:fixed;top:10px;right:10px;background:rgba(255,255,255,0.2);color:#fff;border:none;width:36px;height:36px;border-radius:50%;font-size:20px;cursor:pointer;z-index:1;">✕</button>' +
+        '</div>' +
+        '<img src="' + url + '" style="width:100%;max-width:500px;">' +
+        '<div style="padding:16px;display:flex;gap:10px;width:100%;max-width:500px;">' +
+          '<a href="' + url + '" download="小猴数学-练习计划.png" style="flex:1;display:block;padding:14px;background:#27ae60;color:#fff;border-radius:8px;text-decoration:none;font-size:15px;font-weight:600;text-align:center;">📥 保存</a>' +
+          '<button onclick="var ov=document.getElementById(\'img-overlay\');ov.remove();doPrint();" style="flex:1;padding:14px;background:#fff;color:#2c3e50;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;">🖨️ 打印</button>' +
+        '</div>';
+      document.body.appendChild(ov);
+    }).catch(function(e) {
+      document.body.removeChild(c);
+      document.body.removeChild(ld);
+      alert('图片生成失败，请截图保存。');
+    });
+  } catch(e) {
+    document.body.removeChild(c);
+    document.body.removeChild(ld);
+    alert('图片生成失败，请截图保存。');
   }
 }
 
