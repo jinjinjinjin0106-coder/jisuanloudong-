@@ -254,6 +254,10 @@ function generate() {
 })();
 
 function generatePDF() {
+  // Remove old overlay if exists
+  var old = document.getElementById('pdf-overlay');
+  if (old) { old.parentNode.removeChild(old); }
+
   var el = document.getElementById('plan-content');
   if (!el) { alert('请先生成练习计划'); return; }
 
@@ -261,40 +265,40 @@ function generatePDF() {
   var clone = el.cloneNode(true);
   clone.querySelectorAll('.ans').forEach(function(a) { a.style.display = 'inline'; });
   clone.querySelectorAll('.plan-day-body.hide').forEach(function(b) { b.classList.remove('hide'); });
-  clone.querySelectorAll('span[onclick]').forEach(function(s) { s.style.display = 'none'; });
+  clone.querySelectorAll('span[onclick]').forEach(function(s) { s.parentNode.removeChild(s); });
 
-  var page = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>小猴数学·练习计划</title>' +
-    '<style>' +
-    '*{box-sizing:border-box;margin:0;padding:0}' +
-    'body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;padding:12px;max-width:500px;margin:0 auto;color:#2c3e50;background:#fff}' +
-    '.plan-day{border:1px solid #ddd;border-radius:10px;margin-bottom:8px;overflow:hidden;page-break-inside:avoid}' +
-    '.plan-day-top{padding:10px 14px;background:#f0faf4;font-weight:700;font-size:14px}' +
-    '.plan-day-body{padding:10px 14px}' +
-    'ol{padding-left:18px;line-height:2.2;font-size:14px}' +
-    '.ans{color:#27ae60;font-weight:600;font-size:13px;margin-left:4px;display:inline}' +
-    '.top-bar{position:sticky;top:0;background:#fff;padding:8px 0;margin-bottom:12px;border-bottom:1px solid #eee;z-index:10}' +
-    '.top-bar a{color:#e67e22;text-decoration:none;font-size:14px;font-weight:600}' +
-    '.print-btn{display:block;width:100%;padding:14px;background:#27ae60;color:#fff;border:none;border-radius:8px;font-size:16px;font-weight:600;margin:16px 0;cursor:pointer}' +
-    '.tip{text-align:center;color:#999;font-size:12px;padding:8px}' +
-    '@media print{.top-bar,.print-btn,.tip{display:none!important}body{padding:0}.plan-day{border:none!important}}' +
-    '</style></head><body>' +
-    '<div class="top-bar"><a href="javascript:history.back()">← 返回</a></div>' +
-    '<button class="print-btn" onclick="window.print()">🖨️ 保存为 PDF / 打印</button>' +
-    '<p class="tip">💡 iOS: 打印界面 → 双指放大预览 → 右上角分享 → 存储到文件<br>Android: 打印界面 → 保存为 PDF</p>' +
-    clone.innerHTML +
-    '<button class="print-btn" onclick="window.print()" style="margin-bottom:24px">🖨️ 保存为 PDF / 打印</button>' +
-    '<p class="tip">💡 点击上方按钮 → 选择「存储到文件」→ 即可保存为 PDF 并转发微信</p>' +
-    '</body></html>';
+  // Build overlay HTML
+  var ov = document.createElement('div');
+  ov.id = 'pdf-overlay';
+  ov.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#fff;z-index:99999;overflow-y:auto;-webkit-overflow-scrolling:touch;';
+  ov.innerHTML = 
+    '<div style="position:sticky;top:0;background:#fff;z-index:10;padding:12px;border-bottom:1px solid #eee;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">' +
+      '<a href="javascript:void(0)" onclick="var e=document.getElementById(\'pdf-overlay\');e.parentNode.removeChild(e);" style="color:#e67e22;text-decoration:none;font-size:14px;font-weight:600;white-space:nowrap;">← 返回</a>' +
+      '<span style="font-size:15px;font-weight:700;flex:1;text-align:center;min-width:100px;">小猴数学 · 练习计划</span>' +
+    '</div>' +
+    '<div style="padding:12px;max-width:500px;margin:0 auto;">' +
+      '<button onclick="window.print()" style="display:block;width:100%;padding:14px;background:#27ae60;color:#fff;border:none;border-radius:8px;font-size:16px;font-weight:600;margin:8px 0 16px;cursor:pointer;position:sticky;top:52px;z-index:5;">🖨️ 保存为 PDF / 打印</button>' +
+      '<div style="text-align:center;color:#999;font-size:12px;margin-bottom:12px;">💡 iOS: 打印界面 → 双指放大预览 → 分享 → 存储到文件<br>Android: 打印界面 → 保存为 PDF → 直接转发微信</div>' +
+      '<div id="pdf-clone-content">' + clone.innerHTML + '</div>' +
+      '<button onclick="window.print()" style="display:block;width:100%;padding:14px;background:#27ae60;color:#fff;border:none;border-radius:8px;font-size:16px;font-weight:600;margin:16px 0 24px;cursor:pointer;">🖨️ 保存为 PDF / 打印</button>' +
+      '<div style="text-align:center;color:#999;font-size:12px;padding-bottom:24px;">💡 保存为 PDF 后可直接转发微信</div>' +
+    '</div>';
 
-  var w = window.open('', '_blank');
-  if (w) {
-    w.document.open();
-    w.document.write(page);
-    w.document.close();
-  } else {
-    var blob = new Blob([page], {type: 'text/html;charset=utf-8'});
-    location.href = URL.createObjectURL(blob);
-  }
+  // Add inline print styles
+  var st = document.createElement('style');
+  st.textContent = 
+    '@media print {' +
+      '#pdf-overlay > div:first-child { display:none !important; }' +
+      '#pdf-overlay button { display:none !important; }' +
+      '#pdf-overlay > div:last-child > div:last-child { display:none !important; }' +
+      '#pdf-overlay { position:static !important; overflow:visible !important; }' +
+      '#pdf-overlay > div > div { padding:4px !important; max-width:100% !important; }' +
+      '.plan-day { border:1px solid #ccc !important; }' +
+    '}';
+  ov.appendChild(st);
+
+  document.body.appendChild(ov);
+  ov.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function printPlan() {
