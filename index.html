@@ -1,0 +1,1893 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>小猴数学 · 计算漏洞诊断</title>
+<style>
+:root {
+  --brand: #f39c12;
+  --brand-dark: #e67e22;
+  --g1: #27ae60; --g1-light: #d5f5e3;
+  --g3: #2980b9; --g3-light: #d6eaf8;
+  --g5: #8e44ad; --g5-light: #e8daef;
+  --red: #c0392b; --red-light: #fadbd8;
+  --teal: #16a085; --teal-light: #d1f2eb;
+  --orange: #e67e22; --orange-light: #fdebd0;
+  --bg: #f8f9fa;
+  --card: #fff;
+  --text: #2c3e50;
+  --text-light: #7f8c8d;
+  --border: #e8e8e8;
+  --shadow: 0 2px 12px rgba(0,0,0,0.06);
+  --radius: 12px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100vh;
+}
+
+/* Header */
+.header {
+  background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+  color: #fff;
+  padding: 16px 20px;
+  text-align: center;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.header .logo {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+.header .logo .icon { font-size: 26px; margin-right: 4px; }
+.header .sub {
+  font-size: 12px;
+  opacity: 0.75;
+  margin-top: 2px;
+}
+
+/* Tab bar */
+.tabs {
+  display: flex;
+  background: #fff;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 82px;
+  z-index: 99;
+}
+.tab {
+  flex: 1;
+  text-align: center;
+  padding: 12px 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-light);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+}
+.tab.active {
+  color: var(--brand-dark);
+  border-bottom-color: var(--brand-dark);
+}
+
+/* Sections */
+.section { display: none; padding: 16px; }
+.section.active { display: block; }
+
+/* Cards */
+.card {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow);
+}
+.card-title {
+  font-size: 17px;
+  font-weight: 700;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.card-title .emoji { font-size: 24px; }
+
+/* Grade selector */
+.grade-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.grade-btn {
+  padding: 16px 8px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  background: #fff;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 13px;
+  font-weight: 600;
+}
+.grade-btn:hover { border-color: var(--brand); }
+.grade-btn.selected { border-color: var(--brand-dark); background: #fef9e7; }
+.grade-btn .grade-num { font-size: 20px; display: block; }
+.grade-btn .grade-label { font-size: 11px; color: var(--text-light); display: block; margin-top: 2px; }
+
+/* Buttons */
+.btn {
+  display: block;
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s;
+}
+.btn-primary {
+  background: var(--brand);
+  color: #fff;
+}
+.btn-primary:hover { background: var(--brand-dark); }
+.btn-primary:disabled { background: #ccc; cursor: not-allowed; }
+.btn-outline {
+  background: #fff;
+  color: var(--brand-dark);
+  border: 2px solid var(--brand-dark);
+}
+.btn-small {
+  display: inline-block;
+  width: auto;
+  padding: 8px 16px;
+  font-size: 13px;
+}
+
+/* Question */
+.question-card {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  border-left: 4px solid var(--brand);
+}
+.question-card.correct { border-left-color: var(--g1); background: #f0faf4; }
+.question-card.wrong { border-left-color: var(--red); background: #fef5f5; }
+.question-num {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--brand-dark);
+  margin-bottom: 6px;
+}
+.question-text {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+.options { display: flex; flex-direction: column; gap: 6px; }
+.option {
+  padding: 10px 14px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-size: 15px;
+}
+.option:hover { border-color: var(--brand); background: #fef9e7; }
+.option.selected { border-color: var(--brand-dark); background: #fef9e7; font-weight: 600; }
+.option.correct-answer { border-color: var(--g1); background: #d5f5e3; }
+.option.wrong-answer { border-color: var(--red); background: #fadbd8; }
+.feedback {
+  margin-top: 8px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  display: none;
+}
+.feedback.show { display: block; }
+.feedback.correct { background: #d5f5e3; color: #1e8449; }
+.feedback.wrong { background: #fadbd8; color: #922b21; }
+
+/* Error checklist */
+.error-category {
+  margin-bottom: 16px;
+}
+.cat-header {
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.cat-header .count { font-size: 12px; font-weight: 400; }
+.cat-items { padding-left: 8px; }
+.cat-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  margin: 4px 0;
+  border-radius: 6px;
+  background: #fff;
+  border: 1px solid var(--border);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.cat-item:hover { background: #f8f9fa; }
+.cat-item.checked { background: #fef9e7; border-color: var(--brand); }
+.cat-item input[type=checkbox] {
+  margin-top: 2px;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--brand-dark);
+  flex-shrink: 0;
+}
+.cat-item .item-code {
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--brand-dark);
+  min-width: 28px;
+}
+
+/* Report */
+.report { display: none; }
+.report.show { display: block; }
+.report-header {
+  text-align: center;
+  padding: 24px 16px;
+  background: linear-gradient(135deg, #fef9e7 0%, #fdebd0 100%);
+  border-radius: var(--radius);
+  margin-bottom: 16px;
+}
+.report-score {
+  font-size: 48px;
+  font-weight: 800;
+  color: var(--brand-dark);
+}
+.report-grade {
+  font-size: 14px;
+  color: var(--text-light);
+  margin-top: 4px;
+}
+.weakness-list { margin-top: 12px; }
+.weakness-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  margin: 6px 0;
+  background: #fef5f5;
+  border-radius: 8px;
+  border-left: 4px solid var(--red);
+  font-size: 14px;
+}
+.weakness-item .severity {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  color: #fff;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.severity-high { background: var(--red); }
+.severity-mid { background: var(--orange); }
+.severity-low { background: var(--teal); }
+
+/* Radar */
+.radar-container {
+  text-align: center;
+  margin: 16px 0;
+}
+.radar-container canvas {
+  max-width: 100%;
+  height: auto;
+}
+
+/* CTA */
+.cta-card {
+  text-align: center;
+  padding: 24px 16px;
+  background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+  color: #fff;
+  border-radius: var(--radius);
+  margin: 16px 0;
+}
+.cta-card h3 { font-size: 18px; margin-bottom: 8px; }
+.cta-card p { font-size: 13px; opacity: 0.85; margin-bottom: 16px; }
+.cta-card .wechat-id {
+  display: inline-block;
+  padding: 10px 24px;
+  background: #fff;
+  color: var(--text);
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  margin: 8px 0;
+}
+.copy-btn {
+  display: inline-block;
+  padding: 6px 16px;
+  background: var(--brand);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  margin-top: 4px;
+}
+
+/* Footer */
+.footer {
+  text-align: center;
+  padding: 24px 16px;
+  color: var(--text-light);
+  font-size: 12px;
+  border-top: 1px solid var(--border);
+  margin-top: 24px;
+}
+
+/* Toast */
+.toast {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0,0,0,0.8);
+  color: #fff;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  z-index: 999;
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+.toast.show { opacity: 1; }
+
+/* Knowledge point selector */
+.kp-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.kp-tag {
+  padding: 6px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: 20px;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+.kp-tag:hover { border-color: var(--brand); }
+.kp-tag.selected { background: var(--brand); color: #fff; border-color: var(--brand); }
+
+/* Progress bar */
+.progress-bar {
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  margin: 12px 0;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: var(--brand);
+  border-radius: 3px;
+  transition: width 0.3s;
+}
+
+/* Step indicator */
+.steps {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.step-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--border);
+}
+.step-dot.active { background: var(--brand); }
+.step-dot.done { background: var(--g1); }
+
+.hidden { display: none !important; }
+
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="logo"><span class="icon">🐵</span>小猴数学</div>
+  <div class="sub">计算漏洞诊断 · 精准定位错因</div>
+</div>
+
+<!-- Tabs -->
+<div class="tabs" id="mainTabs">
+  <div class="tab active" data-tab="quick">⚡ 快速自测</div>
+  <div class="tab" data-tab="detailed">🔍 详细诊断</div>
+</div>
+
+<!-- ==================== QUICK DIAGNOSIS ==================== -->
+<div class="section active" id="section-quick">
+
+  <!-- Step 1: Select Grade -->
+  <div id="quick-step1">
+    <div class="card">
+      <div class="card-title"><span class="emoji">📚</span>选择孩子所在年级</div>
+      <div class="grade-grid" id="quickGradeGrid">
+        <div class="grade-btn" data-grade="g12">
+          <span class="grade-num">1-2</span>
+          <span class="grade-label">一二年级</span>
+        </div>
+        <div class="grade-btn" data-grade="g34">
+          <span class="grade-num">3-4</span>
+          <span class="grade-label">三四年级</span>
+        </div>
+        <div class="grade-btn" data-grade="g56">
+          <span class="grade-num">5-6</span>
+          <span class="grade-label">五六年级</span>
+        </div>
+      </div>
+      <button class="btn btn-primary" id="quickStartBtn" disabled>开始诊断（对照错因勾选）</button>
+      <p style="font-size:12px;color:var(--text-light);text-align:center;margin-top:8px;">不是做题，而是从常见错误中选出孩子的情况 · 约 3 分钟</p>
+    </div>
+  </div>
+
+  <!-- Step 2: Questions -->
+  <div id="quick-step2" class="hidden">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <span style="font-weight:700;" id="quickProgressLabel">第 1/10 题</span>
+        <span style="font-size:12px;color:var(--text-light);" id="quickGradeLabel"></span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="quickProgressBar" style="width:0%"></div></div>
+    </div>
+    <div id="questionContainer"></div>
+    <div style="display:flex;gap:10px;margin-top:12px;">
+      <button class="btn btn-outline btn-small hidden" id="prevQBtn" style="flex:1;">上一题</button>
+      <button class="btn btn-primary btn-small hidden" id="nextQBtn" style="flex:1;">下一题</button>
+    </div>
+    <button class="btn btn-primary hidden" id="submitQuickBtn" style="margin-top:12px;">查看诊断报告</button>
+  </div>
+
+  <!-- Step 3: Report -->
+  <div id="quick-step3" class="hidden">
+    <div id="quickReportContainer"></div>
+  </div>
+</div>
+
+<!-- ==================== DETAILED DIAGNOSIS ==================== -->
+<div class="section" id="section-detailed">
+
+  <!-- Step 1: Select grade + knowledge point -->
+  <div id="detail-step1">
+    <div class="card">
+      <div class="card-title"><span class="emoji">🎯</span>第一步：选择年级</div>
+      <div class="grade-grid" id="detailGradeGrid">
+        <div class="grade-btn" data-grade="g12">
+          <span class="grade-num">1-2</span>
+          <span class="grade-label">一二年级</span>
+        </div>
+        <div class="grade-btn" data-grade="g34">
+          <span class="grade-num">3-4</span>
+          <span class="grade-label">三四年级</span>
+        </div>
+        <div class="grade-btn" data-grade="g56">
+          <span class="grade-num">5-6</span>
+          <span class="grade-label">五六年级</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card hidden" id="detailKPContainer">
+      <div class="card-title"><span class="emoji">📋</span>第二步：选择知识点（可多选）</div>
+      <div class="kp-grid" id="kpGrid"></div>
+    </div>
+  </div>
+
+  <!-- Step 2: Checklist -->
+  <div id="detail-step2" class="hidden">
+    <div class="card">
+      <div class="card-title"><span class="emoji">✅</span>勾选孩子常犯的错因</div>
+      <p style="font-size:13px;color:var(--text-light);margin-bottom:12px;">
+        请根据孩子近期练习情况，逐条勾选。不确定的可先跳过。
+      </p>
+      <div id="errorChecklist"></div>
+      <button class="btn btn-primary" id="detailSubmitBtn" style="margin-top:16px;">生成诊断报告</button>
+    </div>
+  </div>
+
+  <!-- Step 3: Report -->
+  <div id="detail-step3" class="hidden">
+    <div id="detailReportContainer"></div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Footer -->
+<div class="footer">
+  🐵 小猴数学工作室<br>
+  专注小学数学错因分析与精准提分
+</div>
+
+<script>
+// ============================================================
+// DATA: All error categories from 错题溯源图谱
+// ============================================================
+
+const ERROR_DATA = {
+  g12: {
+    label: '一二年级',
+    gradeNum: '1-2',
+    kpList: [
+      { id: 'calc', name: '计算', desc: '口算、进退位、乘除法口诀' }
+    ],
+    categories: {
+      A: {
+        title: 'A. 基本口算错误',
+        desc: '20以内加减法事实记忆不牢或策略使用不当',
+        color: '#2980b9', lightColor: '#d6eaf8',
+        items: [
+          { code: 'A1', name: '20以内加法事实错误', short: '加法事实错误' },
+          { code: 'A2', name: '20以内减法事实错误', short: '减法事实错误' },
+          { code: 'A3', name: '凑十法使用不当', short: '凑十法不当' },
+          { code: 'A4', name: '破十法使用不当', short: '破十法不当' },
+          { code: 'A5', name: '口算速度慢导致焦虑乱写', short: '速度焦虑乱写' },
+        ]
+      },
+      B: {
+        title: 'B. 进位加法错误',
+        desc: '加法中涉及进位的规则错误',
+        color: '#27ae60', lightColor: '#d5f5e3',
+        items: [
+          { code: 'B1', name: '个位满十忘进位', short: '个位满十忘进位' },
+          { code: 'B2', name: '十位相加忘进位', short: '十位相加忘进位' },
+          { code: 'B3', name: '连续进位遗漏', short: '连续进位遗漏' },
+          { code: 'B4', name: '整百整千进位方向错', short: '整百整千进位错' },
+          { code: 'B5', name: '进位后忘加原来的进位', short: '进位后重复遗忘' },
+        ]
+      },
+      C: {
+        title: 'C. 退位减法错误',
+        desc: '一二年级最高频错误区——减法中的退位规则',
+        color: '#e67e22', lightColor: '#fdebd0',
+        items: [
+          { code: 'C1', name: '个位不够减退位遗忘', short: '不够减退位忘' },
+          { code: 'C2', name: '十位被借后忘减1', short: '被借后忘减1' },
+          { code: 'C3', name: '连续退位错误', short: '连续退位错误' },
+          { code: 'C4', name: '被减数含0退位混乱', short: '含0退位混乱' },
+          { code: 'C5', name: '整百整千退位混乱', short: '整百整千退位乱' },
+          { code: 'C6', name: '退位标记混乱', short: '退位标记混乱' },
+        ]
+      },
+      D: {
+        title: 'D. 乘法口诀与表内乘法错误',
+        desc: '表内乘法的记忆和应用错误',
+        color: '#8e44ad', lightColor: '#e8daef',
+        items: [
+          { code: 'D1', name: '口诀记混记串', short: '口诀记混记串' },
+          { code: 'D2', name: '相近口诀混淆', short: '相近口诀混淆' },
+          { code: 'D3', name: '1和0的乘法规则混淆', short: '1和0规则混淆' },
+          { code: 'D4', name: '交换律不会灵活使用', short: '交换律不会用' },
+          { code: 'D5', name: '乘法竖式口诀写错位', short: '竖式口诀写错位' },
+        ]
+      },
+      E: {
+        title: 'E. 除法与余数错误',
+        desc: '表内除法反查和有余数除法的规则错误',
+        color: '#c0392b', lightColor: '#fadbd8',
+        items: [
+          { code: 'E1', name: '除法口诀反查错误', short: '除法口诀反查错' },
+          { code: 'E2', name: '余数大于等于除数', short: '余数≥除数' },
+          { code: 'E3', name: '商和余数位置写反', short: '商和余数写反' },
+          { code: 'E4', name: '不会用乘法验算', short: '不会乘法验算' },
+          { code: 'E5', name: '竖式除法商的位置写错', short: '商的位置写错' },
+        ]
+      },
+      F: {
+        title: 'F. 竖式书写与审题习惯',
+        desc: '涉及竖式书写规范和审题粗心的非计算类错误',
+        color: '#16a085', lightColor: '#d1f2eb',
+        items: [
+          { code: 'F1', name: '竖式数位未对齐', short: '竖式数位未对齐' },
+          { code: 'F2', name: '看错运算符号', short: '看错运算符号' },
+          { code: 'F3', name: '抄错题目数字', short: '抄错题目数字' },
+          { code: 'F4', name: '竖式横线歪斜或不齐', short: '横线不规范' },
+        ]
+      },
+    }
+  },
+
+  g34: {
+    label: '三四年级',
+    gradeNum: '3-4',
+    kpList: [
+      { id: 'decimal', name: '小数', desc: '小数加减乘除法' }
+    ],
+    categories: {
+      A: {
+        title: 'A. 小数意义与读写错误',
+        desc: '小数的数位、计数单位理解错误',
+        color: '#2980b9', lightColor: '#d6eaf8',
+        items: [
+          { code: 'A1', name: '十分位百分位混淆', short: '十分位百分位混淆' },
+          { code: 'A2', name: '小数读写法错误', short: '小数读写错误' },
+          { code: 'A3', name: '小数与分数互化错误', short: '小数分数互化错' },
+          { code: 'A4', name: '小数比大小方法错误', short: '小数比大小错' },
+        ]
+      },
+      B: {
+        title: 'B. 小数加减法对齐错误',
+        desc: '小数点对齐、数位对齐的规则错误',
+        color: '#27ae60', lightColor: '#d5f5e3',
+        items: [
+          { code: 'B1', name: '小数点未对齐', short: '小数点未对齐' },
+          { code: 'B2', name: '位数不同时补0错误', short: '补0位置错误' },
+          { code: 'B3', name: '整数减小数对齐错', short: '整数减小数对齐错' },
+          { code: 'B4', name: '小数进退位遗忘', short: '小数进退位忘' },
+          { code: 'B5', name: '连续进退位错误', short: '连续进退位错' },
+        ]
+      },
+      C: {
+        title: 'C. 小数乘法错误',
+        desc: '小数乘法中因数小数位处理、积的小数点定位错误',
+        color: '#e67e22', lightColor: '#fdebd0',
+        items: [
+          { code: 'C1', name: '小数点定位错误', short: '小数点定位错' },
+          { code: 'C2', name: '因数小数位数统计错', short: '小数位数统计错' },
+          { code: 'C3', name: '小数乘整数转化错', short: '小数乘整数转化错' },
+          { code: 'C4', name: '积末尾0处理错误', short: '积末尾0处理错' },
+          { code: 'C5', name: '小数乘法竖式对齐错', short: '乘法竖式对齐错' },
+          { code: 'C6', name: '乘数小数位数多时混乱', short: '多位数小数混乱' },
+        ]
+      },
+      D: {
+        title: 'D. 小数除法错误',
+        desc: '小数除法中除数转化、商的小数点定位错误',
+        color: '#8e44ad', lightColor: '#e8daef',
+        items: [
+          { code: 'D1', name: '除数小数化整忘乘被除数', short: '除数化整忘乘' },
+          { code: 'D2', name: '商的小数点与被除数不对齐', short: '商小数点不对齐' },
+          { code: 'D3', name: '不够商1时忘写0', short: '不够商1忘写0' },
+          { code: 'D4', name: '除到中间余数处理错', short: '中间余数处理错' },
+          { code: 'D5', name: '除不尽时不会处理', short: '除不尽不会处理' },
+          { code: 'D6', name: '小数除以小数转化错', short: '小数除小数转化错' },
+        ]
+      },
+      E: {
+        title: 'E. 小数近似数与单位换算',
+        desc: '四舍五入、保留小数位数、单位换算中的错误',
+        color: '#c0392b', lightColor: '#fadbd8',
+        items: [
+          { code: 'E1', name: '四舍五入规则记反', short: '四舍五入记反' },
+          { code: 'E2', name: '保留位数看错位置', short: '保留位数看错' },
+          { code: 'E3', name: '单位换算进率记错', short: '进率记错' },
+          { code: 'E4', name: '换算后小数点移位错', short: '换算小数点移位错' },
+          { code: 'E5', name: '近似数末尾0遗漏', short: '近似数末尾0遗漏' },
+        ]
+      },
+      F: {
+        title: 'F. 习惯与审题错误',
+        desc: '看错数字、抄错、运算符号混淆等习惯问题',
+        color: '#16a085', lightColor: '#d1f2eb',
+        items: [
+          { code: 'F1', name: '小数点和逗号混淆', short: '小数点看错' },
+          { code: 'F2', name: '运算符号看错', short: '运算符号看错' },
+          { code: 'F3', name: '抄错小数位数', short: '抄错小数位数' },
+          { code: 'F4', name: '竖式书写潦草', short: '书写潦草' },
+        ]
+      },
+    }
+  },
+
+  g56: {
+    label: '五六年级',
+    gradeNum: '5-6',
+    kpList: [
+      { id: 'fraction', name: '分数运算', desc: '分数加减乘除' },
+      { id: 'mixed', name: '混合运算', desc: '运算顺序与简便运算' },
+      { id: 'percent', name: '百分数与比', desc: '百分数互化、比和比例' },
+    ],
+    categories: {
+      A: {
+        title: 'A. 分数加减法错误',
+        desc: '同分母、异分母、带分数加减法的规则错误',
+        color: '#2980b9', lightColor: '#d6eaf8',
+        items: [
+          { code: 'A1', name: '异分母未通分直接加减', short: '异分母未通分' },
+          { code: 'A2', name: '通分时分子忘乘对应倍数', short: '分子忘乘倍数' },
+          { code: 'A3', name: '结果忘约分化简', short: '结果忘约分' },
+          { code: 'A4', name: '带分数加减法规则混乱', short: '带分数加减混乱' },
+          { code: 'A5', name: '整数减分数退位错误', short: '整数减分数退位' },
+        ]
+      },
+      B: {
+        title: 'B. 分数乘法错误',
+        desc: '分数乘整数、分数乘分数的规则错误',
+        color: '#27ae60', lightColor: '#d5f5e3',
+        items: [
+          { code: 'B1', name: '分数乘分数漏乘', short: '分数乘分数漏乘' },
+          { code: 'B2', name: '分数乘整数只乘分子', short: '只乘分子不乘分母' },
+          { code: 'B3', name: '带分数未化假分数就乘', short: '带分数未化假分数' },
+          { code: 'B4', name: '约分时机不当', short: '约分时机不当' },
+          { code: 'B5', name: '结果忘约分或约分不彻底', short: '乘法结果忘约分' },
+        ]
+      },
+      C: {
+        title: 'C. 分数除法错误',
+        desc: '分数除法的核心——倒数与乘除转换',
+        color: '#e67e22', lightColor: '#fdebd0',
+        items: [
+          { code: 'C1', name: '除数倒数取错对象', short: '倒数取错对象' },
+          { code: 'C2', name: '除号忘变乘号', short: '除号忘变乘号' },
+          { code: 'C3', name: '分数÷整数转化错误', short: '÷整数转化错误' },
+          { code: 'C4', name: '带分数除法未化假分数', short: '带分数未化假分数' },
+          { code: 'C5', name: '连除只变第一个÷号', short: '连除只变第一个' },
+        ]
+      },
+      D: {
+        title: 'D. 约分与通分错误',
+        desc: '约分找公因数不准，通分找公倍数出错',
+        color: '#8e44ad', lightColor: '#e8daef',
+        items: [
+          { code: 'D1', name: '约分公因数找不准', short: '公因数找错' },
+          { code: 'D2', name: '约分不彻底', short: '约分不彻底' },
+          { code: 'D3', name: '通分公分母选错', short: '公分母选错' },
+          { code: 'D4', name: '交叉约分约错对象', short: '交叉约分约错' },
+          { code: 'D5', name: '小数分数混合时不会统一', short: '小数分数不会互化' },
+        ]
+      },
+      E: {
+        title: 'E. 混合运算顺序错误',
+        desc: '四则运算优先级和多层括号的处理错误',
+        color: '#c0392b', lightColor: '#fadbd8',
+        items: [
+          { code: 'E1', name: '先加减后乘除（顺序颠倒）', short: '运算顺序颠倒' },
+          { code: 'E2', name: '有括号时忽略括号', short: '忽略括号' },
+          { code: 'E3', name: '多层括号处理顺序错', short: '多层括号顺序错' },
+          { code: 'E4', name: '同级运算不按从左到右', short: '同级不按从左到右' },
+          { code: 'E5', name: '运算步骤中途停顿', short: '步骤中途停顿' },
+        ]
+      },
+      F: {
+        title: 'F. 简便运算与运算定律错误',
+        desc: '运算定律的理解偏差和滥用',
+        color: '#16a085', lightColor: '#d1f2eb',
+        items: [
+          { code: 'F1', name: '乘法分配律漏乘项', short: '分配律漏乘' },
+          { code: 'F2', name: '分配律反向(提公因数)看不出', short: '提公因数看不出' },
+          { code: 'F3', name: '减法性质记反', short: '减法性质记反' },
+          { code: 'F4', name: '除法性质记反', short: '除法性质记反' },
+          { code: 'F5', name: '滥用运算定律', short: '滥用运算定律' },
+          { code: 'F6', name: '该简便时不简便硬算', short: '该简便不简便' },
+        ]
+      },
+      G: {
+        title: 'G. 百分数、比和比例错误',
+        desc: '百分数互化、比的基本性质和比例解法错误',
+        color: '#e91e63', lightColor: '#fce4ec',
+        items: [
+          { code: 'G1', name: '百分数小数分数互化错误', short: '互化进率错' },
+          { code: 'G2', name: '求比值与化简比混淆', short: '求比值化简比混淆' },
+          { code: 'G3', name: '比的性质只作用于一边', short: '比的性质只用一边' },
+          { code: 'G4', name: '解比例交叉相乘方向错', short: '交叉相乘方向错' },
+        ]
+      },
+    }
+  }
+};
+
+// Quick diagnosis: scenario-based error pattern selection
+// Each scenario presents a teaching situation with different error patterns as options.
+// Parent picks which one matches their child → direct attribution (直接归因)
+// Each scenario includes impact analysis (影响链): what future topics will be affected if unfixed.
+const QUICK_SCENARIOS = {
+  g12: [
+    // ===== A类：基本口算 =====
+    {
+      scenario: '做20以内加法口算时（如8+5、7+6、9+4），孩子经常算错吗？',
+      hint: '20以内加法是所有计算的第一层地基。',
+      impact: '口算没自动化 → 三四年级小数进退位反复崩，每次都要脑子过一遍，速度一块就错。🛠️ 每天3分钟闪卡，8+5=13练到张嘴就有。',
+      cat: 'A',
+      options: [
+        { code: 'A1', text: '是的，经常记混（如8+5=12、7+6=14）' },
+        { code: 'A3', text: '不会凑十，硬想半天（如8+7不知道怎么拆成8+2+5）' },
+        { code: '_none', text: '✅ 加法口算基本全对，反应快' },
+      ]
+    },
+    {
+      scenario: '做20以内退位减法时（如15-7、13-6），孩子算得又慢又容易错吗？',
+      hint: '退位减法是比加法更容易出错的地基内容。',
+      impact: '20以内退位不熟 → 三年级小数退位必翻车。这是隐藏最深的地基漏洞。🛠️ 每天5道破十法，15-7、13-6这些高频组合练到本能反应。',
+      cat: 'A',
+      options: [
+        { code: 'A2', text: '是的，减法事实总记错（如15-7=9、13-6=8）' },
+        { code: 'A4', text: '不会破十法（如13-5不知道先10-5=5再加3）' },
+        { code: '_none', text: '✅ 减法口算基本全对，反应快' },
+      ]
+    },
+    {
+      scenario: '计时口算时，孩子会因为紧张而乱写吗？',
+      hint: '心态问题不是计算能力问题，但会影响所有考试表现。',
+      impact: '计时焦虑 → 四年级应用题压上来，题没读完就瞎写。不是不会，是慌。🛠️ 先不掐表练一周，准确率稳到95%再加时限。',
+      cat: 'A',
+      options: [
+        { code: 'A5', text: '会，一打表就慌，平时会的题也错一堆' },
+        { code: '_none', text: '✅ 计时也能稳住心态，速度和质量兼顾' },
+      ]
+    },
+    // ===== B类：进位加法 =====
+    {
+      scenario: '做100以内进位加法时（如28+5、35+27），个位满十会忘记进位吗？',
+      hint: '个位满十进1是进位加法的第一步。',
+      impact: '个位进位漏 → 多位数加法全歪。第一块砖没放正，上面怎么盖都是歪的。🛠️ 十位上方写小「1」做标记，算十位前先看标记。',
+      cat: 'B',
+      options: [
+        { code: 'B1', text: '经常忘——个位8+5=13只写了3，忘了向十位进1' },
+        { code: '_none', text: '✅ 个位进位记得很清楚' },
+      ]
+    },
+    {
+      scenario: '做两位数和超过100的加法时（如45+78），十位相加满十会忘向百位进1吗？',
+      hint: '多位进位比个位进位多一步，需要连续进位意识。',
+      impact: '多位数连续进位漏 → 脑子同时装好几步，步骤乱了。不是粗心，是工作记忆没理顺。🛠️ 每算完一位在进位标记上打✓，全部算完检查✓是否消完。',
+      cat: 'B',
+      options: [
+        { code: 'B2', text: '经常忘——十位4+7+1=12忘了向百位进1，得113不是123' },
+        { code: 'B3', text: '连续进位中间某一步会漏（如58+67个位进位后十位又忘）' },
+        { code: '_none', text: '✅ 多位数进位都能正确处理' },
+      ]
+    },
+    {
+      scenario: '做整百整千的加法时（如300+800、2000+6000），进位方向会搞错吗？',
+      hint: '整百整千涉及不同计数单位的进位。',
+      impact: '整百整千进位方向错 → 小数、分数的「单位转换」思维全受影响。🛠️ 10个一是1个十、10个十是1个百——用实物理解，不急着做题。',
+      cat: 'B',
+      options: [
+        { code: 'B4', text: '会——300+800不知道向千位进1，答案写1010或110' },
+        { code: 'B5', text: '进位标记写了但算更高位时忘了加进去' },
+        { code: '_none', text: '✅ 整百整千计算没问题' },
+      ]
+    },
+    // ===== C类：退位减法 =====
+    {
+      scenario: '做100以内退位减法时（如32-5），个位不够减会忘记向十位借1吗？',
+      hint: '退位减法是一二年级最高频错误区！',
+      impact: '退位步骤没成本能 → 每次停下来想「够不够减」，一停就错。家长常误判为粗心。🛠️ 口诀「不够减，点点借，十位减1个位加10」，每天念着做5道。',
+      cat: 'C',
+      options: [
+        { code: 'C1', text: '经常忘——2-5不够减没借位，大减小得了37' },
+        { code: 'C2', text: '借了但十位忘减1——52-18=44（十位5-1=4忘了已被借走1）' },
+        { code: '_none', text: '✅ 退位减法基本全对' },
+      ]
+    },
+    {
+      scenario: '做被减数中间有0的减法时（如300-156、105-68），退位会乱吗？',
+      hint: '被减数含0时需要跨位借位，是退位减法中最难的一类。',
+      impact: '含0退位是退位减法的Boss关 → 前面都会，一到300-156就乱。🛠️ 「0是穷光蛋，要找大老板借」，画箭头看钱逐位传递。',
+      cat: 'C',
+      options: [
+        { code: 'C3', text: '连续退位出错——300-156退位链条中某一步断裂' },
+        { code: 'C4', text: '被减数含0时不会处理——105-68十位是0不知怎么借' },
+        { code: 'C5', text: '整千减数退位混乱——1000-456各退位环节搞混' },
+        { code: 'C6', text: '退位标记到处画，自己都分不清哪借了哪没借' },
+        { code: '_none', text: '✅ 含0的退位减法也没问题' },
+      ]
+    },
+    // ===== D类：乘法口诀 =====
+    {
+      scenario: '背乘法口诀时，孩子有哪些情况？',
+      hint: '表内乘法是所有乘除法的基础。',
+      impact: '口诀不自动化 → 三四年级应用题思路对但计算慢，每次从「一一得一」开始顺。🛠️ 打乱顺序抽背，盯死七八五十六、六七四十二、六九五十四。',
+      cat: 'D',
+      options: [
+        { code: 'D1', text: '口诀经常记混（如七八五十六记成四十八）' },
+        { code: 'D2', text: '积相近的口诀搞混（如6×7=42和6×8=48分不清）' },
+        { code: 'D3', text: '1和0的乘法规则搞错（如5×1写成0、8×0写成8）' },
+        { code: '_none', text: '✅ 口诀背得滚瓜烂熟' },
+      ]
+    },
+    {
+      scenario: '做乘法竖式时（如23×4），口诀对了但写的位置对吗？',
+      hint: '口诀结果和进位标记在竖式中的位置很关键。',
+      impact: '进位标记写错位置 → 「位值」概念没到位，不是书写小毛病。🛠️ 方格本练，每个数字一格，进位标在紧挨高位正上方。',
+      cat: 'D',
+      options: [
+        { code: 'D4', text: '不会交换律——9×2不知道反过来想2×9=18更快' },
+        { code: 'D5', text: '竖式里进位1写错位置——如写到了百位上面' },
+        { code: '_none', text: '✅ 乘法竖式书写规范' },
+      ]
+    },
+    // ===== E类：除法与余数 =====
+    {
+      scenario: '做表内除法时（如42÷6、56÷7），孩子能快速用乘法反推吗？',
+      hint: '除法是乘法的逆运算，口诀不熟就会卡。',
+      impact: '口诀不熟在除法里被加倍放大 → 乘法能溜，除法要反着找，脑子转不过弯。🛠️ 每天5道「想乘算除」，练前先复习对应口诀。',
+      cat: 'E',
+      options: [
+        { code: 'E1', text: '反推困难——42÷6想不起6×?=42' },
+        { code: 'E5', text: '竖式里商的位置写错——如63÷7商9写到了十位上方' },
+        { code: '_none', text: '✅ 表内除法快速准确' },
+      ]
+    },
+    {
+      scenario: '做有余数除法时（如17÷3、23÷5），余数处理正确吗？',
+      hint: '余数必须小于除数——这是最容易错的一条规则。',
+      impact: '余数≥除数 → 不是不会，是没意识到「还能再分」。🛠️ 17颗糖分3人——剩5颗还能每人再分1颗。实物演示一遍胜过讲十遍。',
+      cat: 'E',
+      options: [
+        { code: 'E2', text: '余数大于等于除数——17÷3商4余5，但5还可以再分' },
+        { code: 'E3', text: '商和余数写反——20÷6=3……2写成2……3' },
+        { code: 'E4', text: '做完不验算——不知道用商×除数+余数验证' },
+        { code: '_none', text: '✅ 有余数除法完全正确' },
+      ]
+    },
+    // ===== F类：书写与审题 =====
+    {
+      scenario: '列竖式时，数位对齐情况怎么样？',
+      hint: '竖式不规范是很多"粗心错"的真正原因。',
+      impact: '数位对不齐 → 脑子里的数位概念就是乱的，四年级还在对齐上丢分。🛠️ 田字格本坚持用21天，管用整个小学。',
+      cat: 'F',
+      options: [
+        { code: 'F1', text: '数位经常对不齐——个位没对个位、十位没对十位' },
+        { code: 'F4', text: '横线画得歪歪扭扭、太短或太长' },
+        { code: '_none', text: '✅ 竖式书写工整对齐' },
+      ]
+    },
+    {
+      scenario: '孩子会出现"看错符号""抄错数字"的情况吗？',
+      hint: '审题习惯比计算能力更容易被忽视。',
+      impact: '看错符号、抄错数字 → 会做却丢分，最冤。🛠️ 动笔前指读符号——「加号！」激活大脑确认机制。抄完逐位指读核对。',
+      cat: 'F',
+      options: [
+        { code: 'F2', text: '经常看错符号——加号看成减号、乘号看成加号' },
+        { code: 'F3', text: '抄错数字——35抄成53、102抄成120' },
+        { code: '_none', text: '✅ 审题仔细，很少犯这类错误' },
+      ]
+    },
+  ],
+
+  g34: [
+    // ===== A类：小数概念 =====
+    {
+      scenario: '孩子能分清0.3和0.03哪个大吗？十分位和百分位会搞混吗？',
+      hint: '小数数位理解是三四年级小数的第一关。',
+      impact: '小数数位不清 → 全程按「整数思维」算小数，0.3和0.03分不清。🛠️ 拿尺子看：1厘米=10毫米，0.1和0.01的差别一目了然。',
+      cat: 'A',
+      options: [
+        { code: 'A1', text: '十分位百分位混淆——以为0.3=0.03或分不清谁大' },
+        { code: 'A2', text: '读写错误——0.25读成"零点二十五"' },
+        { code: '_none', text: '✅ 小数数位理解清晰' },
+      ]
+    },
+    {
+      scenario: '小数和分数互化时（如0.5=？、1/4=？），孩子熟练吗？',
+      hint: '小数和分数的关系是贯穿中高年级的重要桥梁。',
+      impact: '小数分数不会互化 → 混合运算时傻眼，不知道该化成哪个。🛠️ 0.5=1/2、0.75=3/4、0.25=1/4做成卡片贴桌上。',
+      cat: 'A',
+      options: [
+        { code: 'A3', text: '互化不熟——0.5不知道等于1/2、0.75不知道等于3/4' },
+        { code: 'A4', text: '比大小时凭感觉——如以为0.19>0.2因为19>2' },
+        { code: '_none', text: '✅ 互化和比大小都没问题' },
+      ]
+    },
+    // ===== B类：小数加减法 =====
+    {
+      scenario: '做小数加法时（如3.5+2.48），小数点能对齐吗？',
+      hint: '小数点对齐 = 数位对齐——和小时候学的"个位对个位"是一回事。',
+      impact: '小数点不对齐 → 和一年级「个位对个位」是同一回事，概念从根上没内化。🛠️ 方格纸强制对齐，小数独占一格，坚持一个月根治。',
+      cat: 'B',
+      options: [
+        { code: 'B1', text: '不会对齐——3.5+2.48把5和8对齐了，得2.83' },
+        { code: 'B2', text: '位数不同时不知在哪补0——0.3+0.25对不齐' },
+        { code: '_none', text: '✅ 小数点对齐完全正确' },
+      ]
+    },
+    {
+      scenario: '整数减小数时（如5-1.7、10-3.24），孩子的结果对吗？',
+      hint: '整数减小数需要在整数后面补小数点再计算。',
+      impact: '整数减小数卡住 → 五年级整数减分数还会卡，同一个思维漏洞。🛠️ 整数后面补.0，5=5.0，补完再对齐。',
+      cat: 'B',
+      options: [
+        { code: 'B3', text: '整数减小数时对齐出错——5-1.7不知道5的小数点在哪' },
+        { code: 'B4', text: '小数进退位遗忘——十分位满十忘进位、不够减忘退位' },
+        { code: 'B5', text: '连续进退位中间断裂——多步进退位链中某步遗漏' },
+        { code: '_none', text: '✅ 小数加减法包括进退位都没问题' },
+      ]
+    },
+    // ===== C类：小数乘法 =====
+    {
+      scenario: '做小数乘法时（如0.5×0.3、1.2×0.4），积的小数点位置对吗？',
+      hint: '小数乘法的核心：因数共有几位小数，积就从右边数几位点小数点。',
+      impact: '积的小数点「凭感觉」点 → 简单题蒙对，复杂题崩。🛠️ 强制三步：算整数积→数小数位→从右数回点小数点，每步写草稿。',
+      cat: 'C',
+      options: [
+        { code: 'C1', text: '小数点位置点错——0.5×0.3=1.5（忘了点小数点）' },
+        { code: 'C2', text: '因数小数位数统计错——忘了数两个因数各有几位小数' },
+        { code: '_none', text: '✅ 小数乘法小数点定位正确' },
+      ]
+    },
+    {
+      scenario: '做较复杂的小数乘法时（如0.25×0.36、1.25×8），容易出错吗？',
+      hint: '小数位数多时，先算整数乘法再点小数点。',
+      impact: '小数位数一多就乱 → 「小数→整数→还原」中间步骤没搞清楚。🛠️ 让孩子口头说出每一步，说出来就是理清思路。',
+      cat: 'C',
+      options: [
+        { code: 'C3', text: '小数乘整数转化错——0.6×4不当成6×4再还原' },
+        { code: 'C4', text: '积末尾0不会处理——0.5×0.4=0.20不知道化简为0.2' },
+        { code: 'C5', text: '乘法竖式中因数小数位不同时对齐混乱' },
+        { code: 'C6', text: '小数位数一多就混乱——多位小数乘法统计总位数出错' },
+        { code: '_none', text: '✅ 复杂小数乘法也没问题' },
+      ]
+    },
+    // ===== D类：小数除法 =====
+    {
+      scenario: '做小数除法时（如2.4÷0.6），除数有小数会怎么处理？',
+      hint: '小数除法的核心：先把除数变成整数（被除数跟着扩大相同倍数）。',
+      impact: '除数有小数就蒙 → 「不知道怎么办」的瞬间就是卡点。🛠️ 口诀：除数变大，被除数跟着大，商不会差。2.4÷0.6→都×10→24÷6=4。',
+      cat: 'D',
+      options: [
+        { code: 'D1', text: '除数扩大了被除数忘跟着扩大——2.4÷0.6只变0.6不变2.4' },
+        { code: 'D6', text: '小数除以小数不知道被除数和除数同时×几' },
+        { code: '_none', text: '✅ 除数转化步骤正确' },
+      ]
+    },
+    {
+      scenario: '做小数除法竖式时，商的小数点位置和中间0的处理对吗？',
+      hint: '商的小数点要和被除数新小数点对齐，不够商1时商上要写0。',
+      impact: '商的小数点和中间0次次扣分 → 大步骤都对，细节上冤死。🛠️ 商的小数点永远在被除数小数点正上方。中间不够商1强制写0。',
+      cat: 'D',
+      options: [
+        { code: 'D2', text: '商的小数点没和被除数对齐' },
+        { code: 'D3', text: '不够商1时忘了在商上写0——直接跳到下一位' },
+        { code: 'D4', text: '除到中间余数不知道怎么继续处理' },
+        { code: 'D5', text: '除不尽时不会保留小数位数或不会写循环小数' },
+        { code: '_none', text: '✅ 小数除法竖式全流程正确' },
+      ]
+    },
+    // ===== E类：近似数与单位换算 =====
+    {
+      scenario: '四舍五入时，孩子知道什么时候"入"、什么时候"舍"吗？',
+      hint: '看保留位的下一位：≥5就进，<5就舍。',
+      impact: '四舍五入看错判断位 → 规则会，但不知道看哪一位。🛠️ 手指盖住保留位后面，露出的第一位就是判断位。',
+      cat: 'E',
+      options: [
+        { code: 'E1', text: '规则记反——该进位不进、不该进位瞎进' },
+        { code: 'E2', text: '判断位看错——应该看下一位却看了下下位' },
+        { code: 'E5', text: '保留后末尾0漏写——如3.10写成3.1改变了精确度' },
+        { code: '_none', text: '✅ 四舍五入规则清楚' },
+      ]
+    },
+    {
+      scenario: '做单位换算时（如2.5千克=？克、30厘米=？米），容易错吗？',
+      hint: '单位换算 = 乘除以进率，小数点跟着移动。',
+      impact: '换算进率记不住 → 不是不会算，是1千克=？克脑子里蹦错数。🛠️ 进率做小卡片，每次先写进率再算。该像口诀一样脱口而出。',
+      cat: 'E',
+      options: [
+        { code: 'E3', text: '进率记错——1千克=100克、1米=10厘米' },
+        { code: 'E4', text: '换算后小数点移错位数——2.5千克化克=25克（少移了）' },
+        { code: '_none', text: '✅ 单位换算完全正确' },
+      ]
+    },
+    // ===== F类：习惯与审题 =====
+    {
+      scenario: '小数计算中，孩子会看漏小数点或看错运算符号吗？',
+      hint: '三四年级数字中加了小数点，对视觉辨识要求更高。',
+      impact: '小数点看漏、符号看错 → 五六年级符号更多，审题失误翻倍。🛠️ 做题前用笔圈小数点、圈运算符号。多花10秒圈题，换会做的题不丢分。',
+      cat: 'F',
+      options: [
+        { code: 'F1', text: '小数点和逗号、句号混淆，看漏小数点' },
+        { code: 'F2', text: '运算符号看错——×看成+、÷看成-' },
+        { code: 'F3', text: '抄题时小数位数抄错——3.14抄成3.4' },
+        { code: 'F4', text: '竖式书写潦草，自己的数字自己都认不出' },
+        { code: '_none', text: '✅ 书写工整，审题仔细' },
+      ]
+    },
+  ],
+
+  g56: [
+    // ===== A类：分数加减法 =====
+    {
+      scenario: '做异分母加减时（如1/2+1/3），孩子知道要先通分吗？',
+      hint: '分数加减第一铁律：分母不同先通分，分母相同才能加减。',
+      impact: '不通分就加减 → 初中分式运算全面崩塌。这个惯性必须打破。🛠️ 每次做分数加减前先说「分母一样吗？不一样先通分！」变成条件反射。',
+      cat: 'A',
+      options: [
+        { code: 'A1', text: '不通分直接加减——1/2+1/3=2/5' },
+        { code: 'A2', text: '通分了但分子忘乘——分母变成6了分子还是1' },
+        { code: '_none', text: '✅ 通分步骤完全正确' },
+      ]
+    },
+    {
+      scenario: '做完分数加减法后，结果会记得约分吗？',
+      hint: '结果要化到最简分数，这是得分的关键一步。',
+      impact: '结果不约分 → 不是不会，是「算完就不想看了」。🛠️ 草稿纸最上面写「约分了吗？」，做完必查。两周养成习惯。',
+      cat: 'A',
+      options: [
+        { code: 'A3', text: '经常忘约分——3/8+1/8=4/8就不化了，不知道=1/2' },
+        { code: '_none', text: '✅ 每次都会检查并约到最简' },
+      ]
+    },
+    {
+      scenario: '做带分数加减法时（如2又1/4-1又3/4），规则清晰吗？',
+      hint: '带分数加减——分数部分不够减时要从整数部分借1。',
+      impact: '带分数进退位混乱 → 和一年级退位减法一回事，但孩子没把旧知识迁移过来。🛠️ 对比32-5和2又1/4-1又3/4，让他发现「这是一回事」。',
+      cat: 'A',
+      options: [
+        { code: 'A4', text: '带分数加减规则混乱——整数和分数部分不知怎么协调' },
+        { code: 'A5', text: '整数减分数退位错——3-2/5不知道3=15/5' },
+        { code: '_none', text: '✅ 带分数加减规则清晰' },
+      ]
+    },
+    // ===== B类：分数乘法 =====
+    {
+      scenario: '做分数乘分数时（如2/3×3/5），分子乘分子、分母乘分母能记住吗？',
+      hint: '分数乘法比加减法简单——不需要通分，直接上×上、下×下。',
+      impact: '分数加减乘除规则混淆 → 最大的敌人不是难度，是混淆。🛠️ 自己总结规则对比表贴桌前，做每道题前先确认用哪条。',
+      cat: 'B',
+      options: [
+        { code: 'B1', text: '只乘了分子忘乘分母（或反过来）——2/3×3/5只算了上面' },
+        { code: 'B2', text: '分数乘整数时连分母也乘了——3/4×5写成3/20' },
+        { code: '_none', text: '✅ 分数乘法规则掌握' },
+      ]
+    },
+    {
+      scenario: '做带分数乘法时（如2又1/3×3），会先化成假分数吗？',
+      hint: '带分数乘法第一步永远：化成假分数！',
+      impact: '带分数不化假分数就乘除 → 偷懒跳步骤，觉得「差不多」。但数学不认差不多。🛠️ 草稿纸第一行永远写假分数，让这步不可跳过。',
+      cat: 'B',
+      options: [
+        { code: 'B3', text: '不化假分数就直接乘——想当然认为2又1/3×3=6又1/3' },
+        { code: 'B4', text: '不会交叉约分——先乘出大数再约，数字大容易算错' },
+        { code: 'B5', text: '乘法做完忘了约分——或约了一次还有公因数没约干净' },
+        { code: '_none', text: '✅ 带分数乘法和约分时机都对' },
+      ]
+    },
+    // ===== C类：分数除法 =====
+    {
+      scenario: '做分数除法时（如3/4÷2/5），÷变×、除数变倒数——这两步都做到吗？',
+      hint: '分数除法口诀：一变符号（÷→×）、二变除数（分子分母颠倒）。被除数不动！',
+      impact: '分数除法规则卡壳 → 小学计算的最高峰，到六年级下还在卡。🛠️ 身体记忆：右手÷→×，左手颠倒。做完用1÷2验算，对得上就对了。',
+      cat: 'C',
+      options: [
+        { code: 'C1', text: '倒数取错对象——把被除数变了倒数，除数没变' },
+        { code: 'C2', text: '÷号忘了变×——倒数取对了但符号还是÷' },
+        { code: '_none', text: '✅ 分数除法规则完全正确' },
+      ]
+    },
+    {
+      scenario: '分数除以整数（如3/5÷2）或连除时（如a÷b÷c），处理正确吗？',
+      hint: '整数=整数/1，倒数为1/整数。连除所有除数都要取倒数。',
+      impact: '连除只变第一个÷ → 「看一个改一个」，不是全局思维。🛠️ 先圈所有÷号，统一标「→×」，再一次性改。',
+      cat: 'C',
+      options: [
+        { code: 'C3', text: '÷整数转化错——不知道整数分母是1，倒数是几分之一' },
+        { code: 'C4', text: '带分数没化假分数就做除法——只倒了分数部分' },
+        { code: 'C5', text: '连除只变第一个÷——后面的除数忘了也取倒数' },
+        { code: '_none', text: '✅ 除整数和连除都会处理' },
+      ]
+    },
+    // ===== D类：约分与通分 =====
+    {
+      scenario: '约分时能找对最大公因数吗？约分能约彻底吗？',
+      hint: '约分是贯穿五年级所有分数运算的基本功。',
+      impact: '约分不彻底 → 初中因式分解无从下手，整个代数模块学不动。🛠️ 每天5道约分专项，坚持一个月练出「火眼金睛」。',
+      cat: 'D',
+      options: [
+        { code: 'D1', text: '公因数经常找错——如12/18用4去约但18÷4除不尽' },
+        { code: 'D2', text: '约一次就停——8/12约成4/6不继续约成2/3' },
+        { code: '_none', text: '✅ 约分又快又彻底' },
+      ]
+    },
+    {
+      scenario: '通分时公分母选对了吗？交叉约分时对象约对了吗？',
+      hint: '通分用最小公倍数，交叉约分是分子和分母之间约。',
+      impact: '通分用乘积不用最小公倍数 → 数字大易算错，初中分式通分直接算不出。🛠️ 短除法找最小公倍数，固定写在草稿右上角。',
+      cat: 'D',
+      options: [
+        { code: 'D3', text: '公分母选错——不用最小公倍数导致数字巨大难算' },
+        { code: 'D4', text: '交叉约分约错对象——分子跟分子约、分母跟分母约' },
+        { code: 'D5', text: '小数和分数混一起时不知统一成哪种形式' },
+        { code: '_none', text: '✅ 通分和交叉约分都正确' },
+      ]
+    },
+    // ===== E类：混合运算顺序 =====
+    {
+      scenario: '做混合运算时（如3+4×2），孩子会不会先算加减后算乘除？',
+      hint: '混合运算第一铁律：先乘除后加减，有括号先算括号。',
+      impact: '运算顺序错 → 脑子里没有优先级地图。🛠️ 颜色标记：红笔圈×÷先算，蓝笔圈+−后算，荧光笔画括号最先。',
+      cat: 'E',
+      options: [
+        { code: 'E1', text: '顺序颠倒——3+4×2算成7×2=14（应该先4×2=8再3+8=11）' },
+        { code: 'E2', text: '忽略括号——(3+5)×2算成3+10=13' },
+        { code: 'E3', text: '多层括号顺序错——小括号没算完就跳到中括号' },
+        { code: 'E4', text: '同级运算不按从左到右——24÷3×2先算3×2=6得4' },
+        { code: '_none', text: '✅ 运算顺序完全正确' },
+      ]
+    },
+    // ===== F类：简便运算 =====
+    {
+      scenario: '用乘法分配律时（如5×(6+4)），括号里的每一项都乘了吗？',
+      hint: '分配律：a×(b+c)=a×b+a×c。外面要去"串门"，括号里每家都要走到。',
+      impact: '分配律背得出但做不对 → 5×(6+4)把4漏了。能背≠真懂。🛠️ 「串门」故事：a去括号里每家都要到。让孩子出题考你——教别人最锻炼理解。',
+      cat: 'F',
+      options: [
+        { code: 'F1', text: '漏乘——5×(6+4)=5×6+4=34（忘乘第二项4）' },
+        { code: 'F2', text: '提公因数看不出来——36×27+36×73不知道提36' },
+        { code: 'F5', text: '滥用运算定律——不该简便时乱简便' },
+        { code: 'F6', text: '明明可以简便却硬算——没看出来简便方法' },
+        { code: '_none', text: '✅ 分配律理解到位，用得灵活' },
+      ]
+    },
+    {
+      scenario: '减法性质和除法性质会用吗？（如a-b-c=a-(b+c)、a÷b÷c=a÷(b×c)）',
+      hint: '连减=减和，连除=除积。这些是简化计算的重要工具。',
+      impact: '运算性质死记硬背 → 换道题就不会用。🛠️ 「花38再花62=一次花100」→秒懂a-b-c=a-(b+c)。生活化理解秒杀死记。',
+      cat: 'F',
+      options: [
+        { code: 'F3', text: '减法性质记反——a-b-c写成a-(b-c)' },
+        { code: 'F4', text: '除法性质记反——a÷b÷c写成a÷(b÷c)' },
+        { code: '_none', text: '✅ 减法性质和除法性质都清楚' },
+      ]
+    },
+    // ===== G类：百分数、比和比例 =====
+    {
+      scenario: '百分数、小数、分数之间互化熟练吗？（如0.75=75%=3/4）',
+      hint: '三种形式的互化是小升初必考。',
+      impact: '三种互化不熟 → 初中理化计算太慢，会做但做不完。🛠️ 50%=1/2、25%=1/4、75%=3/4、20%=1/5练到条件反射。每天3分钟一周见效。',
+      cat: 'G',
+      options: [
+        { code: 'G1', text: '互化出错——0.45写成4.5%、75%写成0.75但不会化分数' },
+        { code: 'G2', text: '求比值和化简比混淆——写反了格式（该写数时写比）' },
+        { code: '_none', text: '✅ 三种形式互化熟练' },
+      ]
+    },
+    {
+      scenario: '解比例时（如3:x=6:8），交叉相乘的方向对吗？',
+      hint: '内项积 = 外项积。中间两项的积 = 旁边两项的积。',
+      impact: '比例交叉相乘方向反 → 到考试还在纠结哪个乘哪个。🛠️ 画「×」：左上×右下=左下×右上。比口诀直观，不容易反。',
+      cat: 'G',
+      options: [
+        { code: 'G3', text: '化简比时前后项没同时操作——只变了前项或只变了后项' },
+        { code: 'G4', text: '交叉相乘方向反——把内项×内项和外项×外项搞反' },
+        { code: '_none', text: '✅ 比和比例完全正确' },
+      ]
+    },
+  ],
+};
+
+// ============================================================
+// STATE
+// ============================================================
+let state = {
+  tab: 'quick',
+  quick: { grade: null, currentQ: 0, answers: {}, submitted: false },
+  detail: { grade: null, selectedKPs: [], checkedItems: {} },
+};
+
+// ============================================================
+// HELPERS
+// ============================================================
+function $(sel) { return document.querySelector(sel); }
+function $$(sel) { return document.querySelectorAll(sel); }
+
+function showToast(msg) {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+function copyText(text) {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(() => showToast('已复制！去微信添加好友'));
+  } else {
+    showToast('请手动复制：' + text);
+  }
+}
+
+// ============================================================
+// TAB SWITCHING
+// ============================================================
+$('#mainTabs').addEventListener('click', (e) => {
+  const tab = e.target.closest('.tab');
+  if (!tab) return;
+  const tabId = tab.dataset.tab;
+  state.tab = tabId;
+  $$('#mainTabs .tab').forEach(t => t.classList.remove('active'));
+  tab.classList.add('active');
+  $$('.section').forEach(s => s.classList.remove('active'));
+  $(`#section-${tabId}`).classList.add('active');
+  if (tabId === 'detailed' && !state.detail.grade) {
+    // reset detail step display
+    $('#detail-step1').classList.remove('hidden');
+    $('#detail-step2').classList.add('hidden');
+    $('#detail-step3').classList.add('hidden');
+  }
+});
+
+// ============================================================
+// QUICK DIAGNOSIS
+// ============================================================
+// Grade selector
+$('#quickGradeGrid').addEventListener('click', (e) => {
+  const btn = e.target.closest('.grade-btn');
+  if (!btn) return;
+  $$('#quickGradeGrid .grade-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  state.quick.grade = btn.dataset.grade;
+  $('#quickStartBtn').disabled = false;
+});
+
+$('#quickStartBtn').addEventListener('click', () => {
+  if (!state.quick.grade) return;
+  state.quick.currentQ = 0;
+  state.quick.answers = {}; // { scenarioIndex: errorCode or '_none' }
+  state.quick.submitted = false;
+  $('#quick-step1').classList.add('hidden');
+  $('#quick-step2').classList.remove('hidden');
+  $('#quick-step3').classList.add('hidden');
+  $('#quickGradeLabel').textContent = ERROR_DATA[state.quick.grade].label;
+  renderQuickScenario();
+});
+
+// Render current scenario card
+function renderQuickScenario() {
+  const scenarios = QUICK_SCENARIOS[state.quick.grade];
+  const i = state.quick.currentQ;
+  const sc = scenarios[i];
+  const total = scenarios.length;
+
+  $('#quickProgressLabel').textContent = `第 ${i+1}/${total} 个场景`;
+  $('#quickProgressBar').style.width = `${((i+1)/total)*100}%`;
+
+  const selected = state.quick.answers[i];
+
+  let html = `<div class="question-card">`;
+  html += `<div class="question-num">场景 ${i+1} · ${sc.cat}类错因</div>`;
+  html += `<div class="question-text">${sc.scenario}</div>`;
+  html += `<div style="font-size:12px;color:var(--text-light);margin-bottom:10px;">💡 ${sc.hint}</div>`;
+  html += `<div class="options">`;
+  sc.options.forEach((opt, oi) => {
+    let cls = 'option';
+    if (selected === opt.code) cls += ' selected';
+    if (opt.code === '_none') cls += ' option-none';
+    html += `<div class="${cls}" data-code="${opt.code}" style="${opt.code === '_none' ? 'border-style:dashed;' : ''}">${opt.text}</div>`;
+  });
+  html += `</div>`;
+  html += `</div>`;
+
+  $('#questionContainer').innerHTML = html;
+
+  // Bind option clicks
+  $$('#questionContainer .option').forEach(opt => {
+    opt.addEventListener('click', function() {
+      const code = this.dataset.code;
+      state.quick.answers[i] = code;
+      renderQuickScenario();
+      updateQuickNav();
+    });
+  });
+
+  updateQuickNav();
+}
+
+function updateQuickNav() {
+  const total = QUICK_SCENARIOS[state.quick.grade].length;
+  const i = state.quick.currentQ;
+  const answered = Object.keys(state.quick.answers).length;
+
+  $('#prevQBtn').classList.toggle('hidden', i === 0);
+  // Allow next even if not answered (but submit only if all done)
+  const allDone = answered === total;
+  $('#nextQBtn').classList.toggle('hidden', i === total - 1);
+  $('#submitQuickBtn').classList.toggle('hidden', !allDone);
+  $('#submitQuickBtn').textContent = `查看诊断报告（${answered}/${total} 场景已完成）`;
+  if (!allDone && answered > 0) {
+    $('#submitQuickBtn').classList.remove('hidden');
+    $('#submitQuickBtn').disabled = false;
+    $('#submitQuickBtn').style.opacity = '0.7';
+  } else if (allDone) {
+    $('#submitQuickBtn').style.opacity = '1';
+    $('#submitQuickBtn').disabled = false;
+  }
+}
+
+$('#prevQBtn').addEventListener('click', () => {
+  if (state.quick.currentQ > 0) {
+    state.quick.currentQ--;
+    renderQuickScenario();
+  }
+});
+
+$('#nextQBtn').addEventListener('click', () => {
+  const total = QUICK_SCENARIOS[state.quick.grade].length;
+  if (state.quick.currentQ < total - 1) {
+    state.quick.currentQ++;
+    renderQuickScenario();
+  }
+});
+
+$('#submitQuickBtn').addEventListener('click', () => {
+  state.quick.submitted = true;
+  $('#quick-step2').classList.add('hidden');
+  $('#quick-step3').classList.remove('hidden');
+  renderQuickReport();
+});
+
+// Quick report — direct error attribution
+function renderQuickReport() {
+  const scenarios = QUICK_SCENARIOS[state.quick.grade];
+  const gradeData = ERROR_DATA[state.quick.grade];
+  const cats = gradeData.categories;
+  const total = scenarios.length;
+
+  // Collect selected errors (exclude '_none')
+  const selectedErrors = []; // { code, cat, scenario, catTitle, impact }
+  const impactList = []; // { cat, catTitle, impact }
+  let cleanCount = 0;
+
+  scenarios.forEach((sc, i) => {
+    const code = state.quick.answers[i];
+    if (code && code !== '_none') {
+      let fullName = '';
+      Object.values(cats).forEach(cat => {
+        const found = cat.items.find(it => it.code === code);
+        if (found) fullName = found.name;
+      });
+      selectedErrors.push({
+        code,
+        cat: sc.cat,
+        catTitle: cats[sc.cat]?.title || sc.cat,
+        catColor: cats[sc.cat]?.color || '#333',
+        scenario: sc.scenario,
+        fullName,
+      });
+      // Collect unique impact per category
+      if (sc.impact && !impactList.find(imp => imp.cat === sc.cat)) {
+        impactList.push({
+          cat: sc.cat,
+          catTitle: cats[sc.cat]?.title || sc.cat,
+          catColor: cats[sc.cat]?.color || '#333',
+          impact: sc.impact,
+        });
+      }
+    } else if (code === '_none') {
+      cleanCount++;
+    }
+  });
+
+  const problemCount = selectedErrors.length;
+  const gradeLabel = gradeData.label;
+
+  // Group by category
+  const byCat = {};
+  selectedErrors.forEach(e => {
+    if (!byCat[e.cat]) byCat[e.cat] = { catTitle: e.catTitle, catColor: e.catColor, errors: [] };
+    byCat[e.cat].errors.push(e);
+  });
+
+  // ===== 生成总体评价 =====
+  const nextGrade = { g12: '三四年级', g34: '五六年级', g56: '初中' };
+  const nextLabel = nextGrade[state.quick.grade];
+  let overallTitle, overallText, overallAdvice;
+  if (problemCount === 0) {
+    overallTitle = `${gradeLabel}计算基础扎实，${cleanCount}个场景全部过关`;
+    overallText = `孩子在${gradeLabel}阶段的各项计算基本功没有明显漏洞。口算、进退位、书写习惯等核心环节表现稳定，为后续学习打下了好底子。`;
+    overallAdvice = `保持现有节奏，继续日常计算练习即可。进入${nextLabel}后，新知识可以平稳衔接。`;
+  } else if (problemCount <= 2) {
+    overallTitle = `计算底子不错，有${problemCount}个小漏洞，补上就完事`;
+    overallText = `孩子在大多数计算环节表现正常，漏洞集中在少数几个点上。这种「局部薄弱」最好解决——精准打击，不用全面返工。`;
+    overallAdvice = `趁漏洞还小、影响还没扩散，现在每周花10分钟专项练习，${problemCount}周就能补齐。进入${nextLabel}后不至于因为这些漏洞拖后腿。`;
+  } else if (problemCount <= 5) {
+    overallTitle = `计算有${problemCount}处漏洞，分布较广，需要系统梳理`;
+    overallText = `孩子的漏洞跨了${Object.keys(byCat).length}个知识类别，不是某一个环节的问题，而是多个关节都有松动。漏洞多但每个都不难补——怕的是放着不管。`;
+    overallAdvice = `建议按「基础→进阶」的顺序逐个击破，预计${Math.round(problemCount*2)}周系统梳理可以大幅改善。如果不补，进入${nextLabel}后这些漏洞会被新知识放大，到时补起来代价翻倍。`;
+  } else {
+    overallTitle = `计算根基有多处松动，需要从根上排查`;
+    overallText = `${problemCount}个场景发现漏洞，仅${cleanCount}个正常。问题不是某一个知识点没学好，而是计算链条的多个环节同时薄弱——这说明地基阶段可能就留下了窟窿，一路带到了现在。`;
+    overallAdvice = `现在是最佳修补窗口。${gradeLabel}是进入${nextLabel}前最后的整块修补时间——建议从最基础的A类错因开始，逐类攻克。如果带着这些漏洞进${nextLabel}，不是在沙子上盖楼，是在沼泽上盖楼。`;
+  }
+
+  let reportHTML = `
+    <div class="report show">
+      <div class="report-header">
+        <div style="font-size:13px;color:var(--text-light);">${gradeLabel} · 计算漏洞诊断报告</div>
+        <div style="font-size:15px;font-weight:700;margin-top:6px;line-height:1.5;">${overallTitle}</div>
+        <div style="font-size:13px;color:var(--text);margin-top:8px;line-height:1.7;">${overallText}</div>
+        <div style="font-size:12px;color:var(--brand-dark);margin-top:6px;line-height:1.7;background:#fff;padding:8px 12px;border-radius:6px;">📌 ${overallAdvice}</div>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <div style="flex:1;text-align:center;background:#fff;border-radius:8px;padding:12px 8px;box-shadow:0 1px 4px rgba(0,0,0,0.04);">
+          <div style="font-size:24px;font-weight:800;color:${problemCount===0?'#27ae60':problemCount<=2?'#e67e22':problemCount<=5?'#e67e22':'#c0392b'};">${problemCount}</div>
+          <div style="font-size:11px;color:var(--text-light);">个漏洞</div>
+        </div>
+        <div style="flex:1;text-align:center;background:#fff;border-radius:8px;padding:12px 8px;box-shadow:0 1px 4px rgba(0,0,0,0.04);">
+          <div style="font-size:24px;font-weight:800;color:#27ae60;">${cleanCount}</div>
+          <div style="font-size:11px;color:var(--text-light);">个场景正常</div>
+        </div>
+        <div style="flex:1;text-align:center;background:#fff;border-radius:8px;padding:12px 8px;box-shadow:0 1px 4px rgba(0,0,0,0.04);">
+          <div style="font-size:24px;font-weight:800;color:#2980b9;">${total}</div>
+          <div style="font-size:11px;color:var(--text-light);">共诊断</div>
+        </div>
+      </div>`;
+
+  if (problemCount > 0) {
+    // Part 1: Error details
+    reportHTML += `
+      <div class="card">
+        <div class="card-title"><span class="emoji">🎯</span>漏洞详情</div>`;
+
+    Object.entries(byCat).forEach(([catKey, group]) => {
+      reportHTML += `
+        <div style="margin-bottom:14px;">
+          <div style="font-weight:700;font-size:14px;color:${group.catColor};margin-bottom:6px;">
+            ${group.catTitle}（${group.errors.length}条）
+          </div>`;
+      group.errors.forEach(e => {
+        const sev = e.cat === 'A' || e.cat === 'B' || e.cat === 'C' ? 'high' : 'mid';
+        reportHTML += `
+          <div class="weakness-item">
+            <span class="severity severity-${sev}">${sev === 'high' ? '优先' : '关注'}</span>
+            <span><strong>${e.code}</strong> ${e.fullName || e.code}</span>
+          </div>`;
+      });
+      reportHTML += `</div>`;
+    });
+
+    reportHTML += `</div>`;
+
+    // Part 2: Impact chain analysis (影响链)
+    if (impactList.length > 0) {
+      reportHTML += `
+      <div class="card">
+        <div class="card-title"><span class="emoji">🔗</span>影响链分析：不补上会怎样？</div>
+        <p style="font-size:13px;color:var(--text-light);margin-bottom:12px;">
+          计算漏洞不是孤立的——低年级的一个小漏洞，会像滚雪球一样影响后续所有相关知识点。以下是针对你孩子当前漏洞的<b>影响预警</b>：
+        </p>`;
+
+      impactList.forEach(imp => {
+        reportHTML += `
+        <div style="margin-bottom:14px;padding:12px;background:${imp.catColor}10;border-radius:8px;border-left:4px solid ${imp.catColor};">
+          <div style="font-weight:700;font-size:13px;color:${imp.catColor};margin-bottom:4px;">
+            ${imp.catTitle}
+          </div>
+          <div style="font-size:13px;line-height:1.7;">${imp.impact}</div>
+        </div>`;
+      });
+
+      reportHTML += `
+        <div style="margin-top:12px;padding:10px;background:#fef9e7;border-radius:8px;font-size:12px;color:#7d6608;">
+          💡 <b>关键认知：</b>小学数学知识是<b>链式结构</b>——前面的漏洞不会自动消失，而是会被后续知识"放大"。一二年级一个退位小漏洞，到了五六年级可能演变成分数计算大面积丢分。趁现在补上，代价最小。
+        </div>
+      </div>`;
+    }
+
+    // Part 3: Action advice
+    reportHTML += `
+      <div class="card">
+        <div class="card-title"><span class="emoji">💡</span>下一步行动建议</div>
+        <ol style="padding-left:20px;font-size:14px;line-height:2.2;">`;
+
+    if (problemCount >= 3) {
+      reportHTML += `<li>先从<strong>基础类（A类）</strong>错因开始攻克——地基不牢，上层全晃</li>`;
+      reportHTML += `<li>每攻克一条错因，在《错因频率统计表》上追踪3天确认不再犯</li>`;
+    }
+    reportHTML += `
+          <li>对照《家长指导手册》中对应编号，查看<b>正确做法</b>和<b>自我提醒语</b></li>
+          <li>同类题目每天练5道，用<b>专项练习</b>巩固，直到连续3次全对</li>
+          <li>两周后重新诊断一次，追踪漏洞修复进度</li>
+        </ol>
+      </div>`;
+  } else {
+    reportHTML += `
+      <div class="card" style="text-align:center;">
+        <div class="card-title"><span class="emoji">🌟</span>太棒了！</div>
+        <p style="font-size:15px;">在所有诊断场景中，孩子都没有出现常见的计算漏洞。</p>
+        <p style="font-size:13px;color:var(--text-light);">建议继续保持日常计算练习，也可以切换到「详细诊断」逐条检查确保没有遗漏。</p>
+        <button class="btn btn-outline btn-small" onclick="switchToDetailed()" style="margin-top:12px;">🔍 切换到详细诊断</button>
+      </div>`;
+  }
+
+  // CTA
+  reportHTML += `
+    <div class="cta-card">
+      <h3>📩 针对这 ${problemCount} 条漏洞的专属方案</h3>
+      <p style="font-size:14px;margin-bottom:12px;">诊断告诉你<strong>哪里出了问题</strong>。下面是<strong>具体怎么改</strong>：</p>
+      <p style="font-size:13px;margin:8px 0;text-align:left;padding-left:16px;">
+        📋 <b>错因频率统计表</b>：8 周追踪打卡，每条漏洞练到不再犯<br>
+        📖 <b>家长指导手册</b>：每条错因的正确做法 + 典型错例 + 自我提醒语<br>
+        🎯 <b>优先攻克顺序</b>：先补哪个、怎么补、每周练什么
+      </p>
+      <p style="font-size:17px;font-weight:700;color:#fff;margin:14px 0;background:rgba(255,255,255,0.12);padding:8px 12px;border-radius:8px;display:inline-block;">💰 39 元 · 含以上全部 + 两周后免费复诊一次</p>
+      <div class="wechat-id">小猴数学-小猴老师</div>
+      <br>
+      <button class="copy-btn" onclick="copyText('小猴数学-小猴老师')">📋 复制微信号</button>
+      <p style="font-size:12px;opacity:0.7;margin-top:8px;">添加微信 · 发送诊断报告截图 · 当天交付</p>
+    </div>
+
+    <div class="card" style="text-align:center;">
+      <p style="font-size:13px;color:var(--text-light);">快速诊断不够细？试试逐条逐类勾选</p>
+      <button class="btn btn-outline btn-small" onclick="switchToDetailed()" style="margin-top:8px;">🔍 切换到详细诊断</button>
+    </div>`;
+
+  $('#quickReportContainer').innerHTML = reportHTML;
+  $('#quickReportContainer').scrollIntoView({ behavior: 'smooth' });
+
+}
+
+// ============================================================
+// DETAILED DIAGNOSIS
+// ============================================================
+$('#detailGradeGrid').addEventListener('click', (e) => {
+  const btn = e.target.closest('.grade-btn');
+  if (!btn) return;
+  $$('#detailGradeGrid .grade-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  state.detail.grade = btn.dataset.grade;
+  state.detail.selectedKPs = [];
+  state.detail.checkedItems = {};
+  renderDetailKP();
+  $('#detailKPContainer').classList.remove('hidden');
+  $('#detail-step2').classList.add('hidden');
+  $('#detail-step3').classList.add('hidden');
+});
+
+function renderDetailKP() {
+  const kps = ERROR_DATA[state.detail.grade].kpList;
+  let html = kps.map(kp =>
+    `<div class="kp-tag" data-kp="${kp.id}">${kp.name}</div>`
+  ).join('');
+  $('#kpGrid').innerHTML = html;
+
+  $$('#kpGrid .kp-tag').forEach(tag => {
+    tag.addEventListener('click', function() {
+      const kpId = this.dataset.kp;
+      if (state.detail.selectedKPs.includes(kpId)) {
+        state.detail.selectedKPs = state.detail.selectedKPs.filter(k => k !== kpId);
+        this.classList.remove('selected');
+      } else {
+        state.detail.selectedKPs.push(kpId);
+        this.classList.add('selected');
+      }
+      if (state.detail.selectedKPs.length > 0) {
+        renderDetailChecklist();
+        $('#detail-step2').classList.remove('hidden');
+      } else {
+        $('#detail-step2').classList.add('hidden');
+      }
+    });
+  });
+}
+
+function renderDetailChecklist() {
+  const cats = ERROR_DATA[state.detail.grade].categories;
+  let html = '';
+
+  Object.entries(cats).forEach(([key, cat]) => {
+    const checked = cat.items.filter(it => state.detail.checkedItems[it.code]).length;
+    html += `
+      <div class="error-category">
+        <div class="cat-header" style="background:${cat.lightColor};color:#2c3e50;" data-cat="${key}">
+          <span>${cat.title}</span>
+          <span class="count">${checked}/${cat.items.length}</span>
+        </div>
+        <div class="cat-items" id="cat-items-${key}">`;
+    cat.items.forEach(item => {
+      const isChecked = state.detail.checkedItems[item.code] || false;
+      html += `
+        <div class="cat-item${isChecked ? ' checked' : ''}" data-code="${item.code}">
+          <input type="checkbox" ${isChecked ? 'checked' : ''} id="chk-${item.code}">
+          <span class="item-code">${item.code}</span>
+          <span>${item.name}</span>
+        </div>`;
+    });
+    html += `</div></div>`;
+  });
+
+  $('#errorChecklist').innerHTML = html;
+
+  // Bind checkbox clicks
+  $$('#errorChecklist .cat-item').forEach(item => {
+    item.addEventListener('click', function(e) {
+      if (e.target.tagName === 'INPUT') return; // let checkbox handle itself
+      const code = this.dataset.code;
+      const chk = $(`#chk-${code}`);
+      chk.checked = !chk.checked;
+      state.detail.checkedItems[code] = chk.checked;
+      if (!chk.checked) delete state.detail.checkedItems[code];
+      this.classList.toggle('checked', chk.checked);
+      // Update category count
+      updateCatCounts();
+    });
+  });
+
+  // Also bind checkbox change directly
+  $$('#errorChecklist input[type=checkbox]').forEach(chk => {
+    chk.addEventListener('change', function() {
+      const code = this.id.replace('chk-', '');
+      state.detail.checkedItems[code] = this.checked;
+      if (!this.checked) delete state.detail.checkedItems[code];
+      this.closest('.cat-item').classList.toggle('checked', this.checked);
+      updateCatCounts();
+    });
+  });
+}
+
+function updateCatCounts() {
+  const cats = ERROR_DATA[state.detail.grade].categories;
+  Object.entries(cats).forEach(([key, cat]) => {
+    const checked = cat.items.filter(it => state.detail.checkedItems[it.code]).length;
+    const header = document.querySelector(`.cat-header[data-cat="${key}"] .count`);
+    if (header) header.textContent = `${checked}/${cat.items.length}`;
+  });
+}
+
+$('#detailSubmitBtn').addEventListener('click', () => {
+  const checkedCount = Object.keys(state.detail.checkedItems).length;
+  if (checkedCount === 0) {
+    showToast('请至少勾选一条错因');
+    return;
+  }
+  $('#detail-step1').classList.add('hidden');
+  $('#detailKPContainer').classList.add('hidden');
+  $('#detail-step2').classList.add('hidden');
+  $('#detail-step3').classList.remove('hidden');
+  renderDetailReport();
+});
+
+function renderDetailReport() {
+  const gradeData = ERROR_DATA[state.detail.grade];
+  const cats = gradeData.categories;
+  const checkedItems = state.detail.checkedItems;
+
+  // Group by category
+  const catBreakdown = {};
+  Object.entries(cats).forEach(([catKey, cat]) => {
+    const items = cat.items.filter(it => checkedItems[it.code]);
+    if (items.length > 0) {
+      catBreakdown[catKey] = { cat, items };
+    }
+  });
+
+  const totalChecked = Object.keys(checkedItems).length;
+  const totalItems = Object.values(cats).reduce((s, c) => s + c.items.length, 0);
+
+  let reportHTML = `
+    <div class="report show">
+      <div class="report-header">
+        <div style="font-size:14px;color:var(--text-light);">${gradeData.label} · 详细漏洞诊断</div>
+        <div class="report-score">${totalChecked}</div>
+        <div style="font-size:14px;">条已识别漏洞 / 共 ${totalItems} 条</div>
+        <div style="font-size:12px;color:var(--text-light);margin-top:4px;">${
+          totalChecked <= 3 ? '🟢 漏洞较少，针对性巩固即可' :
+          totalChecked <= 8 ? '🟡 存在多个薄弱点，建议系统梳理' :
+          '🔴 漏洞较多，需要从基础开始系统排查'
+        }</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><span class="emoji">📊</span>漏洞分类汇总</div>`;
+
+  Object.entries(catBreakdown).forEach(([catKey, { cat, items }]) => {
+    reportHTML += `
+      <div style="margin-bottom:16px;">
+        <div style="font-weight:700;font-size:14px;color:${cat.color};margin-bottom:6px;">
+          ${cat.title}（${items.length}条）
+        </div>
+        <div style="font-size:12px;color:var(--text-light);margin-bottom:4px;">${cat.desc}</div>`;
+    items.forEach(item => {
+      reportHTML += `
+        <div class="weakness-item">
+          <span class="severity severity-mid">待攻破</span>
+          <span><strong>${item.code}</strong> ${item.name}</span>
+        </div>`;
+    });
+    reportHTML += `</div>`;
+  });
+
+  reportHTML += `</div>`;
+
+  // Advice
+  const topCats = Object.entries(catBreakdown)
+    .sort((a, b) => b[1].items.length - a[1].items.length)
+    .slice(0, 3);
+
+  if (topCats.length > 0) {
+    reportHTML += `
+      <div class="card">
+        <div class="card-title"><span class="emoji">💡</span>优先攻克建议</div>
+        <p style="font-size:14px;margin-bottom:12px;">根据你的勾选，建议按以下顺序逐个击破：</p>
+        <ol style="padding-left:20px;font-size:14px;line-height:2;">`;
+    topCats.forEach(([catKey, { cat, items }]) => {
+      reportHTML += `<li><strong>${cat.title}</strong>：先解决这 ${items.length} 条，它们是${cat.desc}的核心</li>`;
+    });
+    reportHTML += `
+        </ol>
+        <p style="font-size:12px;color:var(--text-light);margin-top:12px;">
+          每攻克一条，在《错因频率统计表》上打⭐。坚持3周，漏洞数量可减少70%以上。
+        </p>
+      </div>`;
+  }
+
+  // CTA
+  reportHTML += `
+    <div class="cta-card">
+      <h3>📩 针对这 ${totalChecked} 条漏洞的专属方案</h3>
+      <p style="font-size:14px;margin-bottom:12px;">诊断告诉你<strong>哪里出了问题</strong>。下面是<strong>具体怎么改</strong>：</p>
+      <p style="font-size:13px;margin:8px 0;text-align:left;padding-left:16px;">
+        📋 <b>错因频率统计表</b>：8 周追踪打卡，每条漏洞练到不再犯<br>
+        📖 <b>家长指导手册</b>：每条错因的正确做法 + 典型错例 + 自我提醒语<br>
+        🎯 <b>优先攻克顺序</b>：先补哪个、怎么补、每周练什么
+      </p>
+      <p style="font-size:17px;font-weight:700;color:#fff;margin:14px 0;background:rgba(255,255,255,0.12);padding:8px 12px;border-radius:8px;display:inline-block;">💰 39 元 · 含以上全部 + 两周后免费复诊一次</p>
+      <div class="wechat-id">小猴数学-小猴老师</div>
+      <br>
+      <button class="copy-btn" onclick="copyText('小猴数学-小猴老师')">📋 复制微信号</button>
+      <p style="font-size:12px;opacity:0.7;margin-top:8px;">添加微信 · 发送诊断报告截图 · 当天交付</p>
+    </div>
+  `;
+
+  $('#detailReportContainer').innerHTML = reportHTML;
+  // Scroll to report
+  $('#detailReportContainer').scrollIntoView({ behavior: 'smooth' });
+
+}
+
+// ============================================================
+// UTILITY
+// ============================================================
+function switchToDetailed() {
+  state.tab = 'detailed';
+  $$('#mainTabs .tab').forEach(t => t.classList.remove('active'));
+  document.querySelector('#mainTabs .tab[data-tab="detailed"]').classList.add('active');
+  $$('.section').forEach(s => s.classList.remove('active'));
+  $('#section-detailed').classList.add('active');
+  $('#detail-step1').classList.remove('hidden');
+  if (state.detail.grade) {
+    $('#detailKPContainer').classList.remove('hidden');
+    renderDetailKP();
+  }
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+
+// ============================================================
+// INIT: Reset all
+// ============================================================
+console.log('🐵 小猴数学 · 计算漏洞诊断工具已就绪');
+console.log('📊 已加载错因数据：一二年级7大类 / 三四年级6大类 / 五六年级7大类');
+console.log('⚡ 快速诊断：场景式错因归因——家长对照选项直接定位漏洞');
+console.log('🔍 详细诊断：支持逐条勾选全部错因');
+console.log('💬 微信号占位："小猴数学-小猴老师"——部署前替换为真实号');
+</script>
+</body>
+</html>
