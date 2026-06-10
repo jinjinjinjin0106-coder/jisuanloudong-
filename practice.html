@@ -730,6 +730,8 @@ function toggleSheet() {
   window.scrollTo(0, 0);
 }
 
+var API_BASE = '';
+
 function genPDF() {
   var el = document.getElementById('plan-content');
   if (!el) { el = document.querySelector('.card'); }
@@ -757,13 +759,11 @@ function genPDF() {
   try {
     html2canvas(clone, { scale: 2, backgroundColor: '#ffffff', logging: false, useCORS: true }).then(function(canvas) {
       document.body.removeChild(clone);
-      document.body.removeChild(ld);
 
       var imgData = canvas.toDataURL('image/png');
       var doc = new jspdf.jsPDF('p', 'mm', 'a4');
       var pageW = 210 - 20;
       var pxPerMm = canvas.width / pageW;
-      var totalH = canvas.height / pxPerMm;
       var pageH = 297 - 20;
       var y = 10;
       var srcY = 0;
@@ -785,7 +785,41 @@ function genPDF() {
         srcY += tmpC.height;
       }
 
-      doc.save('小猴数学-练习计划.pdf');
+      // 获取 base64 PDF 数据
+      var pdfBase64 = doc.output('datauristring').split(',')[1];
+
+      // 尝试上传到 Vercel Blob Storage
+      ld.innerHTML = '<div style="font-size:44px;margin-bottom:14px;">📤</div><div>正在上传 PDF，请稍候…</div>';
+
+      fetch(API_BASE + '/api/upload-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pdf: pdfBase64 })
+      }).then(function(r) { return r.json(); })
+      .then(function(data) {
+        document.body.removeChild(ld);
+        if (data.url) {
+          // ✅ 微信直接打开 PDF
+          window.open(data.url, '_blank');
+          // 兜底：如果 window.open 被拦截，直接跳转
+          setTimeout(function() {
+            var _a = document.createElement('a');
+            _a.href = data.url;
+            _a.target = '_blank';
+            _a.style.display = 'none';
+            document.body.appendChild(_a);
+            _a.click();
+          }, 800);
+        } else {
+          alert('上传失败：' + (data.error || '未知错误') + '\n\n将直接下载 PDF 文件');
+          doc.save('小猴数学-练习计划.pdf');
+        }
+      }).catch(function(e) {
+        document.body.removeChild(ld);
+        // API 不可用时回退到直接下载
+        doc.save('小猴数学-练习计划.pdf');
+      });
+
     }).catch(function(e) {
       try { document.body.removeChild(clone); } catch(ex) {}
       try { document.body.removeChild(ld); } catch(ex) {}
