@@ -652,7 +652,7 @@ function generate() {
   h.push('<button class="btn" style="flex:1;background:#fff;border:2px solid #e67e22;color:#e67e22;" onclick="printPlan()">🖨️ 打印</button>');
   h.push('<button class="btn" style="flex:1;background:#fff;border:2px solid #e67e22;color:#e67e22;" onclick="var a=document.querySelectorAll(\'.ans\');for(var i=0;i<a.length;i++)a[i].style.display=\'inline\';">🔍 显示全部答案</button>');
   h.push('</div>');
-  h.push('<button class="btn" style="background:#27ae60;color:#fff;" onclick="toggleSheet()">📄 生成练习单（打印 / 存图）</button>');
+  h.push('<button class="btn" style="background:#27ae60;color:#fff;" onclick="toggleSheet()">📄 生成PDF练习单（可微信打开打印）</button>');
   h.push('<button class="btn" style="background:#fff;border:2px solid #ccc;color:#999;margin-top:8px;" onclick="location.href=location.pathname;">🔄 重新选择错因</button>');
   h.push('<p style="font-size:11px;color:#999;text-align:center;margin-top:8px;">💡 做完家长核对答案 · 连续3天全对=漏洞已修复 ✓</p></div>');
 
@@ -760,7 +760,7 @@ function genPDF() {
       document.body.removeChild(ld);
 
       var imgData = canvas.toDataURL('image/png');
-      var doc = new jsPDF('p', 'mm', 'a4');
+      var doc = new jspdf.jsPDF('p', 'mm', 'a4');
       var pageW = 210 - 20;
       var pxPerMm = canvas.width / pageW;
       var totalH = canvas.height / pxPerMm;
@@ -797,7 +797,6 @@ function genPDF() {
     alert('PDF 生成失败，请刷新后重试。');
   }
 }
-
-
+</script>
 </body>
 </html>
