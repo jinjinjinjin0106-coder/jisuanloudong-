@@ -416,6 +416,22 @@ body {
 
 .hidden { display: none !important; }
 
+
+/* Print */
+@media print {
+  body { background: #fff; max-width: 100%; }
+  .header, .tabs, #mainTabs, .step-indicator, .cta-card, .copy-btn, .save-btn-area,
+  .grade-selector, .kp-grid, .action-buttons, .footer, .toast, button, .btn {
+    display: none !important;
+  }
+  .card { box-shadow: none; border: 1px solid #ddd; break-inside: avoid; }
+  .section { display: block !important; }
+  .section.active { display: block !important; }
+  .report-header { text-align: center; margin-bottom: 16px; }
+  .report-header h2 { font-size: 20px; }
+  @page { margin: 12mm; size: A4; }
+}
+
 </style>
 </head>
 <body>
@@ -1620,22 +1636,24 @@ function renderQuickReport() {
   // CTA
   reportHTML += `
     <div class="cta-card">
-      <h3>📩 针对这 ${problemCount} 条漏洞的专属方案</h3>
-      <p style="font-size:14px;margin-bottom:12px;">诊断告诉你<strong>哪里出了问题</strong>。下面是<strong>具体怎么改</strong>：</p>
+      <h3>📋 一周针对性练习（带答案）</h3>
+      <p style="font-size:14px;margin-bottom:12px;">根据上面这 ${problemCount} 条漏洞，匹配对应的<strong>7天专项练习</strong></p>
       <p style="font-size:13px;margin:8px 0;text-align:left;padding-left:16px;">
-        📋 <b>错因频率统计表</b>：8 周追踪打卡，每条漏洞练到不再犯<br>
-        📖 <b>家长指导手册</b>：每条错因的正确做法 + 典型错例 + 自我提醒语<br>
-        🎯 <b>优先攻克顺序</b>：先补哪个、怎么补、每周练什么<br>
-        🔄 <b>两周后免费复诊一次</b>：追踪改善效果
+        📝 每天一页，精准对应每条漏铜<br>
+        📖 答案单独成册，家长一目了然<br>
+        🖨️ 直接打印，A4 纸就能用
       </p>
-      <div style="font-size:28px;font-weight:800;color:#c0392b;margin:12px 0;">¥39</div>
-      <p style="font-size:12px;color:var(--text-light);margin-bottom:12px;">一份自助方案，不需要约时间、不需要等回复</p>
+      <div style="font-size:28px;font-weight:800;color:#f39c12;margin:12px 0;">¥39</div>
       <div class="wechat-id">UFOceocoo</div>
       <br>
       <button class="copy-btn" onclick="copyText('UFOceocoo')">📋 复制微信号</button>
-      <p style="font-size:12px;opacity:0.7;margin-top:8px;">添加微信 · 发送诊断报告截图 · 当天交付</p>
+      <p style="font-size:12px;opacity:0.7;margin-top:8px;">转账后秒发 PDF · 立刻就能用</p>
     </div>
 
+    <div style="text-align:center;margin:12px 0;" class="save-btn-area">
+      <button class="btn" onclick="window.print()" style="font-size:15px;padding:12px 32px;">📥 保存 / 打印报告</button>
+      <p style="font-size:11px;color:var(--text-light);margin-top:4px;">保存到手机或连接打印机</p>
+    </div>
     <div class="card" style="text-align:center;">
       <p style="font-size:13px;color:var(--text-light);">快速诊断不够细？试试逐条逐类勾选</p>
       <button class="btn btn-outline btn-small" onclick="switchToDetailed()" style="margin-top:8px;">🔍 切换到详细诊断</button>
@@ -1840,23 +1858,28 @@ function renderDetailReport() {
       </div>`;
   }
 
+  // Save button
+  reportHTML += `
+    <div style="text-align:center;margin:12px 0;" class="save-btn-area">
+      <button class="btn" onclick="window.print()" style="font-size:15px;padding:12px 32px;">📥 保存 / 打印报告</button>
+      <p style="font-size:11px;color:var(--text-light);margin-top:4px;">保存到手机或连接打印机</p>
+    </div>`;
+
   // CTA
   reportHTML += `
     <div class="cta-card">
-      <h3>📩 针对这 ${totalChecked} 条漏洞的专属方案</h3>
-      <p style="font-size:14px;margin-bottom:12px;">诊断告诉你<strong>哪里出了问题</strong>。下面是<strong>具体怎么改</strong>：</p>
+      <h3>📋 一周针对性练习（带答案）</h3>
+      <p style="font-size:14px;margin-bottom:12px;">根据上面这 ${totalChecked} 条漏洞，匹配对应的<strong>7天专项练习</strong></p>
       <p style="font-size:13px;margin:8px 0;text-align:left;padding-left:16px;">
-        📋 <b>错因频率统计表</b>：8 周追踪打卡，每条漏洞练到不再犯<br>
-        📖 <b>家长指导手册</b>：每条错因的正确做法 + 典型错例 + 自我提醒语<br>
-        🎯 <b>优先攻克顺序</b>：先补哪个、怎么补、每周练什么<br>
-        🔄 <b>两周后免费复诊一次</b>：追踪改善效果
+        📝 每天一页，精准对应每条漏铜<br>
+        📖 答案单独成册，家长一目了然<br>
+        🖨️ 直接打印，A4 纸就能用
       </p>
-      <div style="font-size:28px;font-weight:800;color:#c0392b;margin:12px 0;">¥39</div>
-      <p style="font-size:12px;color:var(--text-light);margin-bottom:12px;">一份自助方案，不需要约时间、不需要等回复</p>
+      <div style="font-size:28px;font-weight:800;color:#f39c12;margin:12px 0;">¥39</div>
       <div class="wechat-id">UFOceocoo</div>
       <br>
       <button class="copy-btn" onclick="copyText('UFOceocoo')">📋 复制微信号</button>
-      <p style="font-size:12px;opacity:0.7;margin-top:8px;">添加微信 · 发送诊断报告截图 · 当天交付</p>
+      <p style="font-size:12px;opacity:0.7;margin-top:8px;">转账后秒发 PDF · 立刻就能用</p>
     </div>
   `;
 
